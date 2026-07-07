@@ -1,9 +1,9 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using ElementalSpire.Cards;
 
 /// <summary>
-/// 牌组管理器 - 操作 Player 上的 drawPile / handCards / discardPile 组件
+/// 牌组管理器 - 操作 Player 上的 drawPile / handCards / discardPile 组件。
 /// </summary>
 public class DeckManager
 {
@@ -11,6 +11,7 @@ public class DeckManager
     private handCards _handCards;
     private discardPile _discardPile;
     private List<CardData> _exhaustPile = new List<CardData>();
+    private List<CardData> _powerPile = new List<CardData>();
 
     public drawPile DrawPileComponent => _drawPile;
     public handCards HandCardsComponent => _handCards;
@@ -20,11 +21,13 @@ public class DeckManager
     public IReadOnlyList<CardData> drawPile => _drawPile.Cards;
     public IReadOnlyList<CardData> discardPile => _discardPile.Cards;
     public IReadOnlyList<CardData> exhaustPile => _exhaustPile;
+    public IReadOnlyList<CardData> powerPile => _powerPile;
 
     public int DrawPileCount => _drawPile.Count;
     public int HandCount => _handCards.Count;
     public int DiscardPileCount => _discardPile.Count;
     public int ExhaustPileCount => _exhaustPile.Count;
+    public int PowerPileCount => _powerPile.Count;
 
     public DeckManager(drawPile drawPile, handCards handCards, discardPile discardPile)
     {
@@ -33,22 +36,27 @@ public class DeckManager
         _discardPile = discardPile;
     }
 
-    /// <summary>
-    /// 根据预设初始化牌组
-    /// </summary>
     public void Initialize(DeckPreset preset)
     {
-        var cards = CardDeckLibrary.GetCardsByDeckPreset(preset).ToList();
+        Initialize(CardDeckLibrary.GetCardsByDeckPreset(preset), true);
+    }
+
+    public void Initialize(IEnumerable<CardData> cards)
+    {
+        Initialize(cards, true);
+    }
+
+    public void Initialize(IEnumerable<CardData> cards, bool shuffle)
+    {
         _drawPile.Initialize(cards);
         _handCards.Clear();
         _discardPile.Clear();
         _exhaustPile.Clear();
-        _drawPile.Shuffle();
+        _powerPile.Clear();
+        if (shuffle)
+            _drawPile.Shuffle();
     }
 
-    /// <summary>
-    /// 抽指定数量的牌
-    /// </summary>
     public List<CardData> DrawCards(int count)
     {
         var drawn = new List<CardData>();
@@ -67,15 +75,32 @@ public class DeckManager
         return drawn;
     }
 
-    /// <summary>
-    /// 打出一张牌（从手牌移至弃牌堆或消耗区）
-    /// </summary>
+    public void AddCardToHand(CardData card)
+    {
+        _handCards.AddCard(card);
+    }
+
+    public bool RemoveFromHand(CardData card)
+    {
+        return _handCards.RemoveCard(card);
+    }
+
     public void PlayCard(CardData card)
     {
         if (!_handCards.Contains(card)) return;
         _handCards.RemoveCard(card);
+        MoveResolvedCardAfterPlay(card);
+    }
 
-        if (card.exhaust)
+    public void MoveResolvedCardAfterPlay(CardData card)
+    {
+        if (card == null) return;
+
+        if (card.HasCardType(CardType.Power))
+        {
+            _powerPile.Add(card);
+        }
+        else if (card.exhaust)
         {
             _exhaustPile.Add(card);
         }
@@ -85,9 +110,6 @@ public class DeckManager
         }
     }
 
-    /// <summary>
-    /// 弃掉手牌中的指定牌
-    /// </summary>
     public void DiscardCard(CardData card)
     {
         if (!_handCards.Contains(card)) return;
@@ -95,9 +117,6 @@ public class DeckManager
         _discardPile.AddCard(card);
     }
 
-    /// <summary>
-    /// 弃掉全部手牌
-    /// </summary>
     public void DiscardAllHand()
     {
         var all = _handCards.GetAll();
@@ -105,9 +124,6 @@ public class DeckManager
         _handCards.Clear();
     }
 
-    /// <summary>
-    /// 将弃牌堆洗回抽牌堆
-    /// </summary>
     public void ReshuffleDiscardPile()
     {
         if (_discardPile.Count == 0) return;
@@ -115,4 +131,14 @@ public class DeckManager
         _drawPile.AddCards(cards);
         _drawPile.Shuffle();
     }
+
+    public IEnumerable<CardData> GetAllCombatCards()
+    {
+        return _drawPile.Cards
+            .Concat(_handCards.Cards)
+            .Concat(_discardPile.Cards)
+            .Concat(_exhaustPile)
+            .Concat(_powerPile);
+    }
 }
+

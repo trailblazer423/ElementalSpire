@@ -1,4 +1,5 @@
-using UnityEngine;
+﻿using UnityEngine;
+using UnityEngine.SceneManagement;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -6,7 +7,7 @@ using System.Linq;
 using ElementalSpire.Cards;
 
 /// <summary>
-/// 战斗管理器 - 负责战斗逻辑与卡牌系统，回合流程委托给 TurnManager
+/// 战斗管理器 - 负责战斗逻辑与卡牌系统，回合流程委托给 TurnManager。
 /// </summary>
 public class BattleManager : MonoBehaviour
 {
@@ -15,9 +16,14 @@ public class BattleManager : MonoBehaviour
     [SerializeField] private GameObject _enemyObject;
 
     [Header("初始牌组")]
-    [SerializeField] private DeckPreset _startingDeck = DeckPreset.Fire;
+    [SerializeField] private DeckPreset _startingDeck = DeckPreset.All;
+    [SerializeField] private bool _useDemoMixedDeck = true;
 
-    // 组件缓存
+    [Header("场景流转")]
+    [SerializeField] private bool _returnToMapOnWin = true;
+    [SerializeField] private string _mapSceneName = "MapScene";
+    [SerializeField] private float _returnToMapDelay = 1.0f;
+
     private currentEnergy _playerEnergy;
     private playerBlock _playerBlock;
     private playerHP _playerHP;
@@ -34,15 +40,13 @@ public class BattleManager : MonoBehaviour
     private DeckManager _deckManager;
     private CardEffectResolver _cardEffectResolver;
     private bool _isBattleOver = false;
+    private bool _returningToMap = false;
 
-    // ===== 事件 =====
     public event Action<string> OnBattleOver;
-    /// <summary>手牌变化时触发（供 UI 刷新）</summary>
     public event Action OnHandChanged;
-    /// <summary>战斗信息变化时触发（HP/能量/护盾）</summary>
     public event Action OnBattleInfoChanged;
+    public event Action<string> OnBattleLog;
 
-    // ===== 公开属性 =====
     public GameObject PlayerObject => _playerObject;
     public GameObject EnemyObject => _enemyObject;
     public TurnManager TurnManager => _turnManager;
@@ -54,26 +58,22 @@ public class BattleManager : MonoBehaviour
     public EnemyState EnemyState => _enemyState;
     public bool IsBattleOver => _isBattleOver;
 
-    // ==========================================
-    //  生命周期
-    // ==========================================
-
     void Awake()
     {
         CacheComponents();
 
-        // 创建独立的 TurnManager
+        _playerState?.ResetCombatState();
+        _enemyState?.ResetCombatState();
+
         GameObject turnObj = new GameObject("TurnManager", typeof(TurnManager));
         _turnManager = turnObj.GetComponent<TurnManager>();
-        _turnManager.Initialize(_playerEnergy, _playerBlock, _enemyBlock);
+        _turnManager.Initialize(_playerEnergy, _playerBlock, _enemyBlock, _playerState);
 
-        // 初始化牌组系统
         _deckManager = new DeckManager(_drawPile, _handCards, _discardPile);
-        _deckManager.Initialize(_startingDeck);
+        _deckManager.Initialize(BuildInitialDeck(), !_useDemoMixedDeck);
 
         _cardEffectResolver = new CardEffectResolver(this, _deckManager, _playerEnergy, _playerBlock, _playerHP, _playerState);
 
-        // 监听回合事件
         _turnManager.OnDrawPhase += OnDrawPhase;
         _turnManager.OnDiscardPhase += OnDiscardPhase;
         _turnManager.OnPoisonTickPhase += OnPoisonTickPhase;
@@ -84,13 +84,14 @@ public class BattleManager : MonoBehaviour
 
     void Start()
     {
-        // 自动创建 UI（如果场景中没有 BattleUI）
         if (FindObjectOfType<BattleUI>() == null)
         {
-            GameObject uiObj = new GameObject("BattleUI", typeof(BattleUI));
+            new GameObject("BattleUI", typeof(BattleUI));
         }
 
-        // 启动回合循环
+        LogBattleEvent(_useDemoMixedDeck
+            ? "演示混合牌组已启用：开局可直接测试火/毒/水反应。"
+            : $"起始牌组：{_startingDeck}");
         _turnManager.StartBattle();
     }
 
@@ -105,11 +106,10 @@ public class BattleManager : MonoBehaviour
             _turnManager.OnEnemyActionEnded -= OnEnemyTurnEnd;
             _turnManager.OnTurnStarted -= OnTurnStarted;
         }
+
+        _cardEffectResolver?.Dispose();
     }
 
-    /// <summary>
-    /// 缓存必要的组件引用
-    /// </summary>
     private void CacheComponents()
     {
         if (_playerObject != null)
@@ -132,35 +132,86 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// 每回合开始时记录回合数
-    /// </summary>
-    private void OnTurnStarted(int turn)
+    private IEnumerable<CardData> BuildInitialDeck()
     {
-        Debug.Log($"[BattleManager] 第 {turn} 回合开始");
+        var gameManager = GameManager.Instance;
+        if (!_useDemoMixedDeck && gameManager != null && gameManager.playerCardBag != null && gameManager.playerCardBag.Count > 0)
+        {
+            var deck = CardDeckLibrary.GetStarterDeck().ToList();
+            var allCards = CardDeckLibrary.GetAllCards();
+            foreach (string cardId in gameManager.playerCardBag)
+            {
+                CardData card = allCards.FirstOrDefault(data => data.cardId == cardId);
+                if (card != null)
+                    deck.Add(card);
+                else
+                    Debug.LogWarning($"[BattleManager] 未找到奖励卡牌ID: {cardId}");
+            }
+
+            if (deck.Count > 0)
+                return deck;
+        }
+
+        if (_useDemoMixedDeck)
+        {
+            return new[]
+            {
+                CardDeckLibrary.GetCardById("fire_hilt_strike"),
+                CardDeckLibrary.GetCardById("water_blade"),
+                CardDeckLibrary.GetCardById("poison_blade"),
+                CardDeckLibrary.GetCardById("water_curtain"),
+                CardDeckLibrary.GetCardById("color_blank_strike"),
+                CardDeckLibrary.GetCardById("poison_sneak_needle"),
+                CardDeckLibrary.GetCardById("fire_double_strike"),
+                CardDeckLibrary.GetCardById("water_gather"),
+                CardDeckLibrary.GetCardById("poison_smoke_bomb"),
+                CardDeckLibrary.GetCardById("color_neutral_arrow"),
+                CardDeckLibrary.GetCardById("fire_bloodletting"),
+                CardDeckLibrary.GetCardById("water_surge"),
+                CardDeckLibrary.GetCardById("poison_roll"),
+                CardDeckLibrary.GetCardById("fire_perfect_strike"),
+                CardDeckLibrary.GetCardById("water_wave_guard"),
+            };
+        }
+
+        return CardDeckLibrary.GetCardsByDeckPreset(_startingDeck);
     }
 
-    /// <summary>
-    /// 抽牌阶段：抽 5 张牌
-    /// </summary>
+    private void OnTurnStarted(int turn)
+    {
+        _cardEffectResolver?.ClearElementAttachmentAtTurnStart();
+
+        if (_playerState != null)
+        {
+            if (_playerState.DemonFormPowerPerTurn > 0)
+            {
+                _playerState.AddPower(_playerState.DemonFormPowerPerTurn);
+                LogBattleEvent($"恶魔形态：获得 {_playerState.DemonFormPowerPerTurn} 点力量。");
+            }
+
+            if (_playerState.WaterResonanceActive)
+            {
+                _playerState.AddWater(1);
+                LogBattleEvent($"水脉共鸣：获得1点水源，当前水源 {_playerState.WaterSource}。");
+            }
+        }
+
+        OnBattleInfoChanged?.Invoke();
+        LogBattleEvent($"第 {turn} 回合开始。");
+    }
+
     private void OnDrawPhase()
     {
         _deckManager?.DrawCards(5);
         OnHandChanged?.Invoke();
     }
 
-    /// <summary>
-    /// 弃牌阶段：弃掉所有未使用的手牌
-    /// </summary>
     private void OnDiscardPhase()
     {
         _deckManager?.DiscardAllHand();
         OnHandChanged?.Invoke();
     }
 
-    /// <summary>
-    /// 中毒结算阶段：敌人受到中毒伤害，层数减1
-    /// </summary>
     private void OnPoisonTickPhase()
     {
         if (_enemyState == null || _enemyHP == null) return;
@@ -169,7 +220,7 @@ public class BattleManager : MonoBehaviour
         if (poisonDamage > 0)
         {
             _enemyHP.TakeDamage(poisonDamage);
-            Debug.Log($"[BattleManager] 中毒造成 {poisonDamage} 点伤害，剩余中毒: {_enemyState.poison}");
+            LogBattleEvent($"中毒结算：造成 {poisonDamage} 点伤害，剩余中毒 {_enemyState.PoisonStacks}。");
             OnBattleInfoChanged?.Invoke();
 
             // 检查敌人是否被毒死
@@ -180,30 +231,17 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    // ==========================================
-    //  敌人 AI（响应 TurnManager 事件）
-    // ==========================================
-
-    /// <summary>
-    /// 敌人行动阶段开始 -> 启动 AI 协程
-    /// </summary>
     private void OnEnemyTurnStart()
     {
-        Debug.Log("[BattleManager] 敌人行动开始，启动 AI");
+        LogBattleEvent("敌人行动开始。");
         StartCoroutine(EnemyAIAttack());
     }
 
-    /// <summary>
-    /// 敌人行动阶段结束
-    /// </summary>
     private void OnEnemyTurnEnd()
     {
-        Debug.Log("[BattleManager] 敌人行动结束");
+        LogBattleEvent("敌人行动结束。");
     }
 
-    /// <summary>
-    /// 敌人简单AI：攻击玩家
-    /// </summary>
     private IEnumerator EnemyAIAttack()
     {
         if (_enemyObject == null || _playerHP == null)
@@ -212,46 +250,35 @@ public class BattleManager : MonoBehaviour
             yield break;
         }
 
-        // 使用 EnemyAI 组件执行敌人行动
         if (_enemyAI != null)
         {
             _enemyAI.ExecuteTurn();
         }
         else
         {
-            // 容错：如果没有 EnemyAI 组件，使用默认简单逻辑
             int damage = Mathf.Max(1, _turnManager != null ? _turnManager.CurrentTurn : 1);
             _playerHP.TakeDamage(damage);
-            Debug.Log($"[BattleManager] 敌人造成 {damage} 点伤害（默认AI）");
+            LogBattleEvent($"敌人造成 {damage} 点伤害。");
         }
 
         yield return new WaitForSeconds(0.3f);
 
         OnBattleInfoChanged?.Invoke();
 
-        // 检查玩家是否战败
         if (_playerHP.CurrentHP <= 0)
         {
             EndBattle("lose");
         }
 
-        // 通知 TurnManager 敌人行动完成
         _turnManager?.SignalEnemyActionComplete();
     }
 
-    // ==========================================
-    //  公开方法
-    // ==========================================
-
-    /// <summary>
-    /// 玩家对敌人造成伤害（由卡牌等调用）
-    /// </summary>
     public void DealDamageToEnemy(int damage)
     {
         if (_enemyHP == null || _isBattleOver) return;
 
         _enemyHP.TakeDamage(damage);
-        Debug.Log($"[BattleManager] 对敌人造成 {damage} 点伤害，敌人 HP: {_enemyHP.CurrentHP}/{_enemyHP.MaxHP}");
+        LogBattleEvent($"敌人受到 {damage} 点伤害，HP {_enemyHP.CurrentHP}/{_enemyHP.MaxHP}。");
 
         OnBattleInfoChanged?.Invoke();
 
@@ -261,61 +288,135 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// 打出一张牌
-    /// </summary>
     public void PlayCard(CardData cardData)
+    {
+        PlayCard(cardData, ElementType.None);
+    }
+
+    public void PlayCard(CardData cardData, ElementType chosenElement)
     {
         if (_isBattleOver) return;
         if (_turnManager == null || _turnManager.CurrentPhase != BattlePhase.PlayerAction) return;
         if (_deckManager == null || !_deckManager.handCards.Contains(cardData)) return;
 
-        // 检查能量
-        if (_playerEnergy != null && !_playerEnergy.HasEnoughEnergy(cardData.cost))
+        if (!CanAffordCard(cardData))
         {
-            Debug.Log($"[BattleManager] 能量不足: 需要 {cardData.cost}，当前 {_playerEnergy.CurrentEnergy}");
+            LogBattleEvent($"资源不足：无法打出 {cardData.cardName}。");
             return;
         }
 
-        // 花费能量
         _playerEnergy?.SpendEnergy(cardData.cost);
+        SpendWaterCost(cardData);
 
-        // 解析效果
-        _cardEffectResolver?.ResolveEffect(cardData);
-
-        // 从手牌移除（消耗或进弃牌堆）
+        LogBattleEvent($"打出 {cardData.cardName}。");
+        _cardEffectResolver?.ResolveEffect(cardData, chosenElement);
         _deckManager.PlayCard(cardData);
 
-        Debug.Log($"[BattleManager] 打出: {cardData.cardName}");
-
-        // 通知 UI 刷新
         OnHandChanged?.Invoke();
+        OnBattleInfoChanged?.Invoke();
     }
 
-    /// <summary>
-    /// 玩家受到伤害（供 CardEffectResolver 调用）
-    /// </summary>
+    public bool CanAffordCard(CardData cardData)
+    {
+        if (cardData == null) return false;
+
+        bool hasEnergy = _playerEnergy == null || _playerEnergy.HasEnoughEnergy(cardData.cost);
+        bool hasWater = _playerState == null || _playerState.HasEnoughWater(cardData.waterCost);
+        return hasEnergy && hasWater;
+    }
+
+    private void SpendWaterCost(CardData cardData)
+    {
+        if (cardData == null || cardData.waterCost <= 0 || _playerState == null)
+            return;
+
+        if (!_playerState.SpendWater(cardData.waterCost))
+            return;
+
+        LogBattleEvent($"消耗 {cardData.waterCost} 点水源，当前水源 {_playerState.WaterSource}。");
+
+        if (_playerState.LakeEchoBlockPerWater > 0)
+        {
+            int block = _playerState.LakeEchoBlockPerWater * cardData.waterCost;
+            _playerBlock?.AddBlock(block);
+            LogBattleEvent($"星湖回响：获得 {block} 点格挡。");
+        }
+
+        if (_playerState.WaterResonanceActive && !_playerState.WaterResonanceUsedThisTurn)
+        {
+            _playerState.MarkWaterResonanceUsed();
+            _deckManager.DrawCards(1);
+            LogBattleEvent("水脉共鸣：本回合首次消耗水源，抽1张牌。");
+        }
+    }
+
     public void DealDamageToPlayer(int damage)
     {
         if (_playerHP == null || _isBattleOver) return;
         _playerHP.TakeDamage(damage);
+        LogBattleEvent($"玩家受到 {damage} 点伤害，HP {_playerHP.CurrentHP}/{_playerHP.MaxHP}。");
         OnBattleInfoChanged?.Invoke();
+
+        if (_playerHP.CurrentHP <= 0)
+            EndBattle("lose");
     }
 
-    /// <summary>
-    /// 结束战斗
-    /// </summary>
     public void EndBattle(string result)
     {
         if (_isBattleOver) return;
         _isBattleOver = true;
 
-        // 停止回合循环
         if (_turnManager != null)
             _turnManager.StopBattle();
 
+        SyncGameManagerBattleResult(result);
         OnBattleOver?.Invoke(result);
-        Debug.Log($"[BattleManager] 战斗结束！结果: {result}");
+        LogBattleEvent(result == "win" ? "战斗胜利。" : "战斗失败。");
+
+        if (result == "win" && _returnToMapOnWin && GameManager.Instance != null && !_returningToMap)
+        {
+            StartCoroutine(ReturnToMapAfterDelay());
+        }
+    }
+
+    private void SyncGameManagerBattleResult(string result)
+    {
+        if (GameManager.Instance == null)
+            return;
+
+        GameManager.Instance.isBattleWin = result == "win";
+        if (_playerHP != null)
+            GameManager.Instance.playerHp = _playerHP.CurrentHP;
+        if (_playerEnergy != null)
+            GameManager.Instance.currentEnergy = _playerEnergy.CurrentEnergy;
+        if (_playerBlock != null)
+            GameManager.Instance.playerBlock = _playerBlock.CurrentBlock;
+    }
+
+    private IEnumerator ReturnToMapAfterDelay()
+    {
+        _returningToMap = true;
+        yield return new WaitForSeconds(_returnToMapDelay);
+        SceneManager.LoadScene(_mapSceneName);
+    }
+
+    public void LogBattleEvent(string message)
+    {
+        if (string.IsNullOrEmpty(message)) return;
+
+        string formatted = "[Battle] " + message;
+        Debug.Log(formatted);
+        OnBattleLog?.Invoke(message);
+    }
+
+    public void NotifyHandChanged()
+    {
+        OnHandChanged?.Invoke();
+    }
+
+    public void NotifyBattleInfoChanged()
+    {
+        OnBattleInfoChanged?.Invoke();
     }
 
 #if UNITY_EDITOR
@@ -330,3 +431,7 @@ public class BattleManager : MonoBehaviour
     }
 #endif
 }
+
+
+
+

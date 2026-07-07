@@ -223,8 +223,11 @@ public class BattleManager : MonoBehaviour
             LogBattleEvent($"中毒结算：造成 {poisonDamage} 点伤害，剩余中毒 {_enemyState.PoisonStacks}。");
             OnBattleInfoChanged?.Invoke();
 
+            // 检查敌人是否被毒死
             if (_enemyHP.CurrentHP <= 0)
+            {
                 EndBattle("win");
+            }
         }
     }
 

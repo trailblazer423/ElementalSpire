@@ -49,15 +49,15 @@ public class BattleUI : MonoBehaviour
 
     private static readonly string[] PhaseNames = new string[]
     {
-        ">>> 玩家回合开始",
-        ">>> 获得基础能量",
-        ">>> 抽牌阶段",
-        ">>> 我方行动",
-        ">>> 弃牌阶段",
-        ">>> 中毒结算",
-        ">>> 敌人行动",
-        ">>> 护盾清空",
-        ">>> 回合结束"
+        ">>> 玩家回合开始",   // PlayerTurnStart
+        ">>> 获得基础能量",   // EnergyRefill
+        ">>> 抽牌阶段",       // DrawPhase
+        ">>> 我方行动",       // PlayerAction
+        ">>> 弃牌阶段",       // DiscardPhase
+        ">>> 中毒结算",       // PoisonTickPhase
+        ">>> 敌人行动",       // EnemyAction
+        ">>> 护盾清空",       // ShieldClear
+        ">>> 回合结束"        // TurnEnd
     };
 
     void Awake()

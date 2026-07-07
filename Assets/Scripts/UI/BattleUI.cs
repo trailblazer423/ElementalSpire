@@ -1,14 +1,16 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using System.Collections.Generic;
+using ElementalSpire.Cards;
 
 /// <summary>
-/// 战斗UI可视化 - 自动创建所有UI元素，无需手动拖拽绑定
+/// 战斗UI可视化 - 自动创建所有UI元素，显示手牌和战斗信息
 /// </summary>
 public class BattleUI : MonoBehaviour
 {
-    [Header("战斗管理器（可留空，自动查找）")]
-    [SerializeField] private BattleManager _battleManager;
+    private BattleManager _battleManager;
+    private TurnManager _turnManager;
 
     private playerHP _playerHPComponent;
     private currentEnergy _playerEnergyComponent;
@@ -24,20 +26,28 @@ public class BattleUI : MonoBehaviour
     private Text _playerBlockText;
     private Text _enemyHPText;
     private Text _enemyBlockText;
+    private Text _drawPileText;
+    private Text _discardPileText;
     private Button _endTurnButton;
     private GameObject _resultPanel;
     private Text _resultText;
+    private Transform _handArea;
 
+    private Font _font;
     private bool _uiCreated = false;
+    private float _infoUpdateDelay = 0.2f;
+    private List<CardView> _cardViews = new List<CardView>();
 
     private static readonly string[] PhaseNames = new string[]
     {
-        ">>> 玩家回合开始",
-        ">>> 获得基础能量",
-        ">>> 我方行动",
-        ">>> 敌人行动",
-        ">>> 护盾清空",
-        ">>> 回合结束"
+        ">>> 玩家回合开始",   // PlayerTurnStart
+        ">>> 获得基础能量",   // EnergyRefill
+        ">>> 抽牌阶段",       // DrawPhase
+        ">>> 我方行动",       // PlayerAction
+        ">>> 弃牌阶段",       // DiscardPhase
+        ">>> 敌人行动",       // EnemyAction
+        ">>> 护盾清空",       // ShieldClear
+        ">>> 回合结束"        // TurnEnd
     };
 
     // ==========================================
@@ -46,53 +56,57 @@ public class BattleUI : MonoBehaviour
 
     void Awake()
     {
-        Debug.Log("[BattleUI] Awake 开始");
-
         if (_battleManager == null)
             _battleManager = FindObjectOfType<BattleManager>();
 
-        // 只在第一次运行时创建UI
+        if (_battleManager != null)
+            _turnManager = _battleManager.TurnManager;
+
         if (!_uiCreated)
             CreateUI();
 
-        // 订阅事件
+        if (_turnManager != null)
+        {
+            _turnManager.OnPhaseChanged += OnPhaseChanged;
+            _turnManager.OnTurnStarted += OnTurnStarted;
+        }
+
         if (_battleManager != null)
         {
             FindAndCacheComponents(_battleManager.PlayerObject, _battleManager.EnemyObject);
-            _battleManager.OnPhaseChanged += OnPhaseChanged;
-            _battleManager.OnTurnStarted += OnTurnStarted;
             _battleManager.OnBattleOver += OnBattleOver;
-            Debug.Log("[BattleUI] 事件订阅完成");
-        }
-        else
-        {
-            Debug.LogError("[BattleUI] 未找到 BattleManager！");
+            _battleManager.OnHandChanged += RefreshHand;
+            _battleManager.OnBattleInfoChanged += RefreshAllInfo;
         }
 
         if (_endTurnButton != null)
             _endTurnButton.onClick.AddListener(OnEndTurnClicked);
-
-        Debug.Log("[BattleUI] Awake 结束");
     }
 
     void Start()
     {
-        Debug.Log("[BattleUI] Start 开始");
-        if (_battleManager == null)
+        if (_battleManager == null || _turnManager == null)
         {
-            Debug.LogError("[BattleUI] Start: 未找到 BattleManager，UI 无法工作");
+            Debug.LogError("[BattleUI] BattleManager 或 TurnManager 未找到");
             return;
         }
+        // 首次刷新手牌
+        RefreshHand();
         StartCoroutine(DelayedInitialUpdate());
     }
 
     void OnDestroy()
     {
+        if (_turnManager != null)
+        {
+            _turnManager.OnPhaseChanged -= OnPhaseChanged;
+            _turnManager.OnTurnStarted -= OnTurnStarted;
+        }
         if (_battleManager != null)
         {
-            _battleManager.OnPhaseChanged -= OnPhaseChanged;
-            _battleManager.OnTurnStarted -= OnTurnStarted;
             _battleManager.OnBattleOver -= OnBattleOver;
+            _battleManager.OnHandChanged -= RefreshHand;
+            _battleManager.OnBattleInfoChanged -= RefreshAllInfo;
         }
         if (_endTurnButton != null)
             _endTurnButton.onClick.RemoveListener(OnEndTurnClicked);
@@ -104,9 +118,6 @@ public class BattleUI : MonoBehaviour
 
     private void CreateUI()
     {
-        Debug.Log("[BattleUI] 开始创建 UI 元素");
-
-        // 查找或创建 Canvas
         _canvas = FindObjectOfType<Canvas>();
         if (_canvas == null)
         {
@@ -116,16 +127,9 @@ public class BattleUI : MonoBehaviour
             var scaler = canvasObj.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
-            Debug.Log("[BattleUI] 创建了新 Canvas");
-        }
-        else
-        {
-            Debug.Log("[BattleUI] 使用已有 Canvas");
         }
 
-        // 获取字体
         Font font = GetFont();
-        Debug.Log($"[BattleUI] 字体: {(font != null ? font.name : "NULL")}");
 
         _phaseText = CreateText("PhaseText", ">>> 玩家回合开始", 36, Color.white, new Vector2(0, 200), font);
         _turnText = CreateText("TurnText", "第 1 回合", 28, Color.white, new Vector2(0, 150), font);
@@ -137,40 +141,118 @@ public class BattleUI : MonoBehaviour
         _enemyHPText = CreateText("EnemyHPText", "HP: 15/15", 24, Color.red, new Vector2(400, 0), font);
         _enemyBlockText = CreateText("EnemyBlockText", "", 24, Color.yellow, new Vector2(400, -40), font);
 
+        // 牌库信息（左下角）
+        _drawPileText = CreateText("DrawPileText", "抽牌堆: 0", 18, Color.white, new Vector2(-700, -300), font);
+        _discardPileText = CreateText("DiscardPileText", "弃牌堆: 0", 18, Color.white, new Vector2(-700, -340), font);
+
+        // 手牌区域（底部中央）— 用 Image 确保获得 RectTransform
+        var handObj = new GameObject("HandArea", typeof(Image));
+        _handArea = handObj.transform;
+        _handArea.SetParent(_canvas.transform, false);
+        var handImage = handObj.GetComponent<Image>();
+        handImage.color = Color.clear; // 透明
+        handImage.raycastTarget = false;
+        var handRect = handObj.GetComponent<RectTransform>();
+        handRect.anchorMin = new Vector2(0.5f, 0);
+        handRect.anchorMax = new Vector2(0.5f, 0);
+        handRect.pivot = new Vector2(0.5f, 0.5f);
+        handRect.anchoredPosition = new Vector2(0, 120);
+        handRect.sizeDelta = new Vector2(1200, 300);
+
         _endTurnButton = CreateEndTurnButton(font);
         _resultPanel = CreateResultPanel(font);
         _resultText = _resultPanel.GetComponentInChildren<Text>();
 
+        // 确保 EventSystem 存在（IPointerClickHandler 需要）
+        if (FindObjectOfType<UnityEngine.EventSystems.EventSystem>() == null)
+        {
+            new GameObject("EventSystem", typeof(UnityEngine.EventSystems.EventSystem),
+                typeof(UnityEngine.EventSystems.StandaloneInputModule));
+        }
+
+        _font = font;
         _uiCreated = true;
-        Debug.Log("[BattleUI] UI 创建完成");
     }
 
     /// <summary>
-    /// 获取可用字体
+    /// 刷新手牌显示
     /// </summary>
+    private void RefreshHand()
+    {
+        // 清除旧卡牌
+        foreach (var cv in _cardViews)
+        {
+            if (cv != null) Destroy(cv.gameObject);
+        }
+        _cardViews.Clear();
+
+        if (_battleManager?.DeckManager == null) return;
+
+        var hand = _battleManager.DeckManager.handCards;
+        bool isPlayerAction = _turnManager != null && _turnManager.CurrentPhase == BattlePhase.PlayerAction;
+
+        for (int i = 0; i < hand.Count; i++)
+        {
+            CardData card = hand[i];
+            var cardView = CardView.Create(_handArea, card, _font, OnCardClicked);
+            _cardViews.Add(cardView);
+
+            // 排列位置
+            float totalWidth = hand.Count * 170;
+            float startX = -totalWidth / 2f + 80;
+            var rect = cardView.GetComponent<RectTransform>();
+            rect.anchoredPosition = new Vector2(startX + i * 170, 0);
+
+            // 检查是否可以打出
+            bool canPlay = isPlayerAction && CanAffordCard(card);
+            cardView.SetInteractable(canPlay);
+        }
+
+        // 更新牌库计数
+        UpdatePileCounts();
+
+        // 同时刷新 HP / 能量 / 护盾显示
+        RefreshAllInfo();
+    }
+
+    private bool CanAffordCard(CardData card)
+    {
+        if (_battleManager?.PlayerEnergy == null) return false;
+        return _battleManager.PlayerEnergy.HasEnoughEnergy(card.cost);
+    }
+
+    private void UpdatePileCounts()
+    {
+        if (_battleManager?.DeckManager == null) return;
+        if (_drawPileText != null)
+            _drawPileText.text = $"抽牌堆: {_battleManager.DeckManager.DrawPileCount}";
+        if (_discardPileText != null)
+            _discardPileText.text = $"弃牌堆: {_battleManager.DeckManager.DiscardPileCount}";
+    }
+
+    /// <summary>
+    /// 卡牌点击回调
+    /// </summary>
+    private void OnCardClicked(CardData cardData)
+    {
+        _battleManager?.PlayCard(cardData);
+    }
+
     private Font GetFont()
     {
-        // 方法1: LegacyRuntime.ttf（Unity 2022 内置字体）
         try
         {
             Font f = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             if (f != null) return f;
         }
-        catch (System.Exception e)
-        {
-            Debug.LogWarning($"[BattleUI] LegacyRuntime.ttf 加载失败: {e.Message}");
-        }
+        catch { }
 
-        // 方法2: 从系统创建动态字体
         try
         {
             Font f = Font.CreateDynamicFontFromOSFont("Arial", 24);
             if (f != null) return f;
         }
-        catch (System.Exception e)
-        {
-            Debug.LogWarning($"[BattleUI] 系统字体加载失败: {e.Message}");
-        }
+        catch { }
 
         return null;
     }
@@ -289,32 +371,28 @@ public class BattleUI : MonoBehaviour
 
     private void OnPhaseChanged(BattlePhase phase)
     {
-        Debug.Log($"[BattleUI] 阶段变化: {phase}");
         int index = (int)phase;
-        if (index >= 0 && index < PhaseNames.Length)
-        {
-            if (_phaseText != null)
-                _phaseText.text = PhaseNames[index];
-            else
-                Debug.LogWarning("[BattleUI] _phaseText 为 null");
-        }
+        if (index >= 0 && index < PhaseNames.Length && _phaseText != null)
+            _phaseText.text = PhaseNames[index];
 
         if (_endTurnButton != null)
             _endTurnButton.gameObject.SetActive(phase == BattlePhase.PlayerAction);
+
+        // 阶段变化时刷新卡牌可用状态
+        RefreshHand();
 
         StartCoroutine(DelayedRefresh());
     }
 
     private void OnTurnStarted(int turn)
     {
-        Debug.Log($"[BattleUI] 回合开始: {turn}");
         if (_turnText != null)
             _turnText.text = $"第 {turn} 回合";
+        UpdatePileCounts();
     }
 
     private void OnBattleOver(string result)
     {
-        Debug.Log($"[BattleUI] 战斗结束: {result}");
         _resultPanel.SetActive(true);
         if (result == "win")
         {
@@ -346,15 +424,7 @@ public class BattleUI : MonoBehaviour
         RefreshAllInfo();
     }
 
-    private float _infoUpdateDelay = 0.2f;
-
     private void RefreshAllInfo()
-    {
-        UpdatePlayerInfo();
-        UpdateEnemyInfo();
-    }
-
-    private void UpdatePlayerInfo()
     {
         if (_playerHPComponent != null && _playerHPText != null)
             _playerHPText.text = $"HP: {_playerHPComponent.CurrentHP}/{_playerHPComponent.MaxHP}";
@@ -365,10 +435,6 @@ public class BattleUI : MonoBehaviour
             int block = _playerBlockComponent.CurrentBlock;
             _playerBlockText.text = block > 0 ? $"护盾: {block}" : "";
         }
-    }
-
-    private void UpdateEnemyInfo()
-    {
         if (_enemyHPComponent != null && _enemyHPText != null)
             _enemyHPText.text = $"HP: {_enemyHPComponent.CurrentHP}/{_enemyHPComponent.MaxHP}";
         if (_enemyBlockComponent != null && _enemyBlockText != null)
@@ -380,7 +446,6 @@ public class BattleUI : MonoBehaviour
 
     public void OnEndTurnClicked()
     {
-        Debug.Log("[BattleUI] 点击结束回合");
-        _battleManager?.EndPlayerTurn();
+        _turnManager?.EndPlayerTurn();
     }
 }

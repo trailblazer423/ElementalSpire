@@ -26,6 +26,9 @@ public class BattleManager : MonoBehaviour
     private drawPile _drawPile;
     private handCards _handCards;
     private discardPile _discardPile;
+    private PlayerState _playerState;
+    private EnemyState _enemyState;
+    private EnemyAI _enemyAI;
 
     private TurnManager _turnManager;
     private DeckManager _deckManager;
@@ -47,6 +50,8 @@ public class BattleManager : MonoBehaviour
     public CardEffectResolver CardEffectResolver => _cardEffectResolver;
     public currentEnergy PlayerEnergy => _playerEnergy;
     public playerBlock PlayerBlock => _playerBlock;
+    public PlayerState PlayerState => _playerState;
+    public EnemyState EnemyState => _enemyState;
     public bool IsBattleOver => _isBattleOver;
 
     // ==========================================
@@ -66,11 +71,12 @@ public class BattleManager : MonoBehaviour
         _deckManager = new DeckManager(_drawPile, _handCards, _discardPile);
         _deckManager.Initialize(_startingDeck);
 
-        _cardEffectResolver = new CardEffectResolver(this, _deckManager, _playerEnergy, _playerBlock, _playerHP);
+        _cardEffectResolver = new CardEffectResolver(this, _deckManager, _playerEnergy, _playerBlock, _playerHP, _playerState);
 
         // 监听回合事件
         _turnManager.OnDrawPhase += OnDrawPhase;
         _turnManager.OnDiscardPhase += OnDiscardPhase;
+        _turnManager.OnPoisonTickPhase += OnPoisonTickPhase;
         _turnManager.OnEnemyActionStarted += OnEnemyTurnStart;
         _turnManager.OnEnemyActionEnded += OnEnemyTurnEnd;
         _turnManager.OnTurnStarted += OnTurnStarted;
@@ -94,6 +100,7 @@ public class BattleManager : MonoBehaviour
         {
             _turnManager.OnDrawPhase -= OnDrawPhase;
             _turnManager.OnDiscardPhase -= OnDiscardPhase;
+            _turnManager.OnPoisonTickPhase -= OnPoisonTickPhase;
             _turnManager.OnEnemyActionStarted -= OnEnemyTurnStart;
             _turnManager.OnEnemyActionEnded -= OnEnemyTurnEnd;
             _turnManager.OnTurnStarted -= OnTurnStarted;
@@ -113,12 +120,15 @@ public class BattleManager : MonoBehaviour
             _drawPile = _playerObject.GetComponent<drawPile>();
             _handCards = _playerObject.GetComponent<handCards>();
             _discardPile = _playerObject.GetComponent<discardPile>();
+            _playerState = _playerObject.GetComponent<PlayerState>();
         }
 
         if (_enemyObject != null)
         {
             _enemyBlock = _enemyObject.GetComponent<enemyBlock>();
             _enemyHP = _enemyObject.GetComponent<enemyHP>();
+            _enemyState = _enemyObject.GetComponent<EnemyState>();
+            _enemyAI = _enemyObject.GetComponent<EnemyAI>();
         }
     }
 
@@ -146,6 +156,22 @@ public class BattleManager : MonoBehaviour
     {
         _deckManager?.DiscardAllHand();
         OnHandChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// 中毒结算阶段：敌人受到中毒伤害，层数减1
+    /// </summary>
+    private void OnPoisonTickPhase()
+    {
+        if (_enemyState == null || _enemyHP == null) return;
+
+        int poisonDamage = _enemyState.TriggerPoisonTick();
+        if (poisonDamage > 0)
+        {
+            _enemyHP.TakeDamage(poisonDamage);
+            Debug.Log($"[BattleManager] 中毒造成 {poisonDamage} 点伤害，剩余中毒: {_enemyState.poison}");
+            OnBattleInfoChanged?.Invoke();
+        }
     }
 
     // ==========================================
@@ -180,13 +206,20 @@ public class BattleManager : MonoBehaviour
             yield break;
         }
 
-        // 简单攻击逻辑：造成相当于当前回合数的伤害（最低1点）
-        int damage = Mathf.Max(1, _turnManager != null ? _turnManager.CurrentTurn : 1);
+        // 使用 EnemyAI 组件执行敌人行动
+        if (_enemyAI != null)
+        {
+            _enemyAI.ExecuteTurn();
+        }
+        else
+        {
+            // 容错：如果没有 EnemyAI 组件，使用默认简单逻辑
+            int damage = Mathf.Max(1, _turnManager != null ? _turnManager.CurrentTurn : 1);
+            _playerHP.TakeDamage(damage);
+            Debug.Log($"[BattleManager] 敌人造成 {damage} 点伤害（默认AI）");
+        }
 
         yield return new WaitForSeconds(0.3f);
-
-        _playerHP.TakeDamage(damage);
-        Debug.Log($"[BattleManager] 敌人造成 {damage} 点伤害，玩家 HP: {_playerHP.CurrentHP}/{_playerHP.MaxHP}");
 
         OnBattleInfoChanged?.Invoke();
 

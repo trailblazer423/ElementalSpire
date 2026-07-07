@@ -1,34 +1,30 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using ElementalSpire.Cards;
 
 /// <summary>
-/// 卡牌UI视图 - 显示单张手牌，支持点击打出
+/// 卡牌UI视图 - 显示单张手牌，支持点击打出或选择元素打出。
 /// </summary>
 public class CardView : MonoBehaviour, IPointerClickHandler
 {
-    [Header("卡牌数据")]
     private CardData _cardData;
 
-    [Header("UI组件")]
     private Text _nameText;
     private Text _costText;
     private Text _descriptionText;
     private Image _background;
+    private Button[] _elementButtons = new Button[0];
+    private bool _interactable = true;
 
-    private System.Action<CardData> _onClickCallback;
+    private System.Action<CardData, ElementType> _onClickCallback;
 
-    // 元素颜色映射
     private static readonly Color FireColor = new Color(0.9f, 0.3f, 0.1f);
     private static readonly Color PoisonColor = new Color(0.3f, 0.7f, 0.1f);
     private static readonly Color WaterColor = new Color(0.2f, 0.5f, 0.9f);
     private static readonly Color ColorlessColor = new Color(0.6f, 0.6f, 0.6f);
 
-    /// <summary>
-    /// 创建卡牌视图
-    /// </summary>
-    public static CardView Create(Transform parent, CardData cardData, Font font, System.Action<CardData> onClickCallback)
+    public static CardView Create(Transform parent, CardData cardData, Font font, System.Action<CardData, ElementType> onClickCallback)
     {
         GameObject obj = new GameObject($"CardView_{cardData.cardId}", typeof(Image), typeof(CardView));
         obj.transform.SetParent(parent, false);
@@ -45,28 +41,74 @@ public class CardView : MonoBehaviour, IPointerClickHandler
         var rect = GetComponent<RectTransform>();
         rect.sizeDelta = new Vector2(160, 220);
 
-        // 背景
         _background = GetComponent<Image>();
         _background.color = GetElementColor(_cardData.elementType);
 
-        // 费用（左上角）
-        _costText = CreateSubText("CostText", _cardData.cost.ToString(), 22, Color.white, font,
-            new Vector2(-55, 85), new Vector2(40, 30));
+        string costText = _cardData.waterCost > 0
+            ? $"{_cardData.cost}能/{_cardData.waterCost}水"
+            : _cardData.cost.ToString();
+        _costText = CreateSubText("CostText", costText, 18, Color.white, font,
+            new Vector2(0, 88), new Vector2(140, 28));
 
-        // 卡牌名
         _nameText = CreateSubText("NameText", _cardData.cardName, 16, Color.white, font,
-            new Vector2(0, 50), new Vector2(140, 30));
+            new Vector2(0, 58), new Vector2(140, 30));
 
-        // 描述
         _descriptionText = CreateSubText("DescText", _cardData.description, 12, new Color(0.9f, 0.9f, 0.9f), font,
-            new Vector2(0, -20), new Vector2(140, 100));
+            new Vector2(0, -18), new Vector2(140, _cardData.chooseElement ? 78 : 104));
 
-        // 如果是消耗牌，显示标记
         if (_cardData.exhaust)
         {
-            var exhaustText = CreateSubText("ExhaustText", "消耗", 12, Color.red, font,
-                new Vector2(0, -95), new Vector2(60, 20));
+            CreateSubText("ExhaustText", "消耗", 12, Color.red, font,
+                new Vector2(0, _cardData.chooseElement ? -70 : -95), new Vector2(60, 20));
         }
+
+        if (_cardData.chooseElement)
+            BuildElementButtons(font);
+    }
+
+    private void BuildElementButtons(Font font)
+    {
+        _elementButtons = new Button[3];
+        CreateElementButton(0, "火", ElementType.Fire, FireColor, font, new Vector2(-50, -92));
+        CreateElementButton(1, "毒", ElementType.Poison, PoisonColor, font, new Vector2(0, -92));
+        CreateElementButton(2, "水", ElementType.Water, WaterColor, font, new Vector2(50, -92));
+    }
+
+    private void CreateElementButton(int index, string label, ElementType element, Color color, Font font, Vector2 anchoredPos)
+    {
+        GameObject obj = new GameObject(label + "Button", typeof(Image), typeof(Button));
+        obj.transform.SetParent(transform, false);
+
+        var rect = obj.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = anchoredPos;
+        rect.sizeDelta = new Vector2(42, 26);
+
+        obj.GetComponent<Image>().color = color;
+        var button = obj.GetComponent<Button>();
+        button.onClick.AddListener(() =>
+        {
+            if (_interactable)
+                _onClickCallback?.Invoke(_cardData, element);
+        });
+        _elementButtons[index] = button;
+
+        GameObject textObj = new GameObject("Text", typeof(Text));
+        textObj.transform.SetParent(obj.transform, false);
+        var txt = textObj.GetComponent<Text>();
+        txt.text = label;
+        txt.fontSize = 14;
+        txt.color = Color.white;
+        txt.alignment = TextAnchor.MiddleCenter;
+        txt.font = font;
+
+        var textRect = textObj.GetComponent<RectTransform>();
+        textRect.anchorMin = Vector2.zero;
+        textRect.anchorMax = Vector2.one;
+        textRect.offsetMin = Vector2.zero;
+        textRect.offsetMax = Vector2.zero;
     }
 
     private Text CreateSubText(string name, string text, int fontSize, Color color, Font font,
@@ -105,22 +147,26 @@ public class CardView : MonoBehaviour, IPointerClickHandler
         }
     }
 
-    /// <summary>
-    /// 点击卡牌
-    /// </summary>
     public void OnPointerClick(PointerEventData eventData)
     {
-        _onClickCallback?.Invoke(_cardData);
+        if (!_interactable || _cardData.chooseElement)
+            return;
+
+        _onClickCallback?.Invoke(_cardData, ElementType.None);
     }
 
-    /// <summary>
-    /// 更新卡牌可用状态
-    /// </summary>
     public void SetInteractable(bool interactable)
     {
+        _interactable = interactable;
         _background.color = interactable
             ? GetElementColor(_cardData.elementType)
             : new Color(0.3f, 0.3f, 0.3f);
+
+        foreach (var button in _elementButtons)
+        {
+            if (button != null)
+                button.interactable = interactable;
+        }
     }
 
     public CardData CardData => _cardData;

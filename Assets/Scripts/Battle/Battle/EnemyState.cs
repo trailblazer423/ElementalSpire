@@ -1,51 +1,87 @@
+﻿using ElementalSpire.Cards;
 using UnityEngine;
 
 /// <summary>
-/// 敌人状态 - 管理中毒等战斗状态，挂载在 Enemy 对象上
+/// 敌人状态 - 中毒层数和元素附着互相独立。
 /// </summary>
 public class EnemyState : MonoBehaviour
 {
     [Header("中毒")]
-    [SerializeField] private int _poison = 0;
+    [SerializeField] private int poisonStacks = 0;
 
-    /// <summary>中毒层数</summary>
-    public int poison => _poison;
+    [Header("元素附着")]
+    [SerializeField] private ElementType elementAttachment = ElementType.None;
+    [SerializeField] private bool deepPoison = false;
 
-    /// <summary>
-    /// 增加中毒层数
-    /// </summary>
-    public void AddPoison(int amount)
+    public int PoisonStacks => poisonStacks;
+    public ElementType ElementAttachment => elementAttachment;
+    public bool DeepPoison => deepPoison;
+
+    public void AddPoisonStacks(int amount)
     {
         if (amount > 0)
-            _poison += amount;
+            poisonStacks += amount;
     }
 
-    /// <summary>
-    /// 结算中毒伤害：造成等同于当前层数的伤害，层数减1
-    /// </summary>
     public int TriggerPoisonTick()
     {
-        if (_poison <= 0) return 0;
+        if (poisonStacks <= 0) return 0;
 
-        int damage = _poison;
-        _poison = Mathf.Max(0, _poison - 1);
+        int damage = poisonStacks;
+        poisonStacks = Mathf.Max(0, poisonStacks - 1);
         return damage;
     }
 
-    /// <summary>
-    /// 减少中毒层数
-    /// </summary>
-    public void RemovePoison(int amount)
+    public void RemovePoisonStacks(int amount)
     {
         if (amount > 0)
-            _poison = Mathf.Max(0, _poison - amount);
+            poisonStacks = Mathf.Max(0, poisonStacks - amount);
     }
 
-    /// <summary>
-    /// 重置中毒
-    /// </summary>
+    public void SetPoisonStacks(int amount)
+    {
+        poisonStacks = Mathf.Max(0, amount);
+    }
+
     public void ResetPoison()
     {
-        _poison = 0;
+        poisonStacks = 0;
+    }
+
+    public void SetElementAttachment(ElementType elementType)
+    {
+        elementAttachment = IsAttachableElement(elementType) ? elementType : ElementType.None;
+    }
+
+    public void ClearElementAttachment()
+    {
+        elementAttachment = ElementType.None;
+    }
+
+    public void ApplyDeepPoison()
+    {
+        deepPoison = true;
+    }
+
+    public bool TryConsumeDeepPoison()
+    {
+        if (!deepPoison) return false;
+
+        deepPoison = false;
+        return true;
+    }
+
+    public void ResetCombatState()
+    {
+        poisonStacks = 0;
+        elementAttachment = ElementType.None;
+        deepPoison = false;
+    }
+
+    private bool IsAttachableElement(ElementType elementType)
+    {
+        return elementType == ElementType.Fire
+            || elementType == ElementType.Poison
+            || elementType == ElementType.Water;
     }
 }

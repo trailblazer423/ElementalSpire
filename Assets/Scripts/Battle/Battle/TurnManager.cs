@@ -1,35 +1,35 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System;
 using System.Collections;
 
 /// <summary>
-/// 战斗回合阶段枚举
+/// 战斗回合阶段枚举。
 /// </summary>
 public enum BattlePhase
 {
-    PlayerTurnStart,    // 玩家回合开始
-    EnergyRefill,       // 获得基础能量
-    DrawPhase,          // 抽牌
-    PlayerAction,       // 我方行动
-    DiscardPhase,       // 弃掉未使用的手牌
-    PoisonTickPhase,    // 中毒结算
-    EnemyAction,        // 敌人行动
-    ShieldClear,        // 护盾清空
-    TurnEnd             // 回合结束
+    PlayerTurnStart,
+    EnergyRefill,
+    DrawPhase,
+    PlayerAction,
+    DiscardPhase,
+    PoisonTickPhase,
+    EnemyAction,
+    ShieldClear,
+    TurnEnd
 }
 
 /// <summary>
-/// 回合管理器 - 独立管理回合阶段流程，与战斗逻辑解耦
+/// 回合管理器 - 独立管理回合阶段流程，与战斗逻辑解耦。
 /// </summary>
 public class TurnManager : MonoBehaviour
 {
     [Header("回合设置")]
     [SerializeField] private float _phaseDelay = 0.5f;
 
-    // 回合机制需要的组件引用
     private currentEnergy _playerEnergy;
     private playerBlock _playerBlock;
     private enemyBlock _enemyBlock;
+    private PlayerState _playerState;
 
     private BattlePhase _currentPhase;
     private int _currentTurn = 1;
@@ -38,7 +38,6 @@ public class TurnManager : MonoBehaviour
     private bool _enemyActionComplete = false;
     private Coroutine _turnCoroutine;
 
-    // ===== 事件系统（供 BattleManager / BattleUI 监听） =====
     public event Action<BattlePhase> OnPhaseChanged;
     public event Action<int> OnTurnStarted;
     public event Action OnEnergyRefilled;
@@ -53,29 +52,19 @@ public class TurnManager : MonoBehaviour
     public event Action<int> OnTurnEnded;
     public event Action OnTurnLoopStopped;
 
-    // ===== 公开属性 =====
     public BattlePhase CurrentPhase => _currentPhase;
     public int CurrentTurn => _currentTurn;
     public bool IsPlayerTurn => _currentPhase == BattlePhase.PlayerAction;
     public bool IsRunning => _isRunning;
 
-    // ==========================================
-    //  初始化与生命周期
-    // ==========================================
-
-    /// <summary>
-    /// 初始化组件引用（由 BattleManager 调用）
-    /// </summary>
-    public void Initialize(currentEnergy playerEnergy, playerBlock playerBlock, enemyBlock enemyBlock)
+    public void Initialize(currentEnergy playerEnergy, playerBlock playerBlock, enemyBlock enemyBlock, PlayerState playerState = null)
     {
         _playerEnergy = playerEnergy;
         _playerBlock = playerBlock;
         _enemyBlock = enemyBlock;
+        _playerState = playerState;
     }
 
-    /// <summary>
-    /// 开始回合循环
-    /// </summary>
     public void StartBattle()
     {
         if (_isRunning) return;
@@ -84,26 +73,17 @@ public class TurnManager : MonoBehaviour
         _turnCoroutine = StartCoroutine(RunTurnLoop());
     }
 
-    /// <summary>
-    /// 玩家结束行动（由 UI 按钮调用）
-    /// </summary>
     public void EndPlayerTurn()
     {
         if (_currentPhase == BattlePhase.PlayerAction && _isRunning)
             _playerActionEnded = true;
     }
 
-    /// <summary>
-    /// 敌人行动完成信号（由 BattleManager 的 AI 协程调用）
-    /// </summary>
     public void SignalEnemyActionComplete()
     {
         _enemyActionComplete = true;
     }
 
-    /// <summary>
-    /// 停止回合循环（战斗结束时调用）
-    /// </summary>
     public void StopBattle()
     {
         if (!_isRunning) return;
@@ -116,60 +96,44 @@ public class TurnManager : MonoBehaviour
         OnTurnLoopStopped?.Invoke();
     }
 
-    // ==========================================
-    //  核心回合循环
-    // ==========================================
-
     private IEnumerator RunTurnLoop()
     {
         while (_isRunning)
         {
-            // 1. 玩家回合开始
             yield return StartCoroutine(ExecutePhase_PlayerTurnStart());
             if (!_isRunning) yield break;
 
-            // 2. 获得基础能量
             yield return StartCoroutine(ExecutePhase_EnergyRefill());
             if (!_isRunning) yield break;
 
-            // 3. 抽牌
             yield return StartCoroutine(ExecutePhase_DrawPhase());
             if (!_isRunning) yield break;
 
-            // 4. 我方行动
             yield return StartCoroutine(ExecutePhase_PlayerAction());
             if (!_isRunning) yield break;
 
-            // 5. 弃掉未使用的手牌
             yield return StartCoroutine(ExecutePhase_DiscardPhase());
             if (!_isRunning) yield break;
 
-            // 6. 中毒结算
             yield return StartCoroutine(ExecutePhase_PoisonTickPhase());
             if (!_isRunning) yield break;
 
-            // 7. 敌人行动
             yield return StartCoroutine(ExecutePhase_EnemyAction());
             if (!_isRunning) yield break;
 
-            // 8. 护盾清空
             yield return StartCoroutine(ExecutePhase_ShieldClear());
             if (!_isRunning) yield break;
 
-            // 9. 回合结束
             yield return StartCoroutine(ExecutePhase_TurnEnd());
 
             _currentTurn++;
         }
     }
 
-    // ==========================================
-    //  各阶段执行
-    // ==========================================
-
     private IEnumerator ExecutePhase_PlayerTurnStart()
     {
         SetPhase(BattlePhase.PlayerTurnStart);
+        _playerState?.ResetTurnFlags();
         OnTurnStarted?.Invoke(_currentTurn);
         Debug.Log($"[TurnManager] === 第 {_currentTurn} 回合 ===");
         yield return new WaitForSeconds(_phaseDelay * 0.5f);
@@ -231,11 +195,10 @@ public class TurnManager : MonoBehaviour
     private IEnumerator ExecutePhase_EnemyAction()
     {
         SetPhase(BattlePhase.EnemyAction);
+        _enemyActionComplete = false;
         OnEnemyActionStarted?.Invoke();
         Debug.Log("[TurnManager] 敌人行动阶段");
 
-        // 等待 BattleManager 完成敌人 AI
-        _enemyActionComplete = false;
         while (!_enemyActionComplete && _isRunning)
             yield return null;
 
@@ -248,12 +211,20 @@ public class TurnManager : MonoBehaviour
     {
         SetPhase(BattlePhase.ShieldClear);
 
-        // 只清除玩家护盾，敌人护盾保留到下一回合以吸收玩家伤害
         if (_playerBlock != null)
-            _playerBlock.ResetBlock();
+        {
+            if (_playerState != null && _playerState.BarricadeActive)
+            {
+                Debug.Log($"[TurnManager] 壁垒生效，保留玩家护盾 {_playerBlock.CurrentBlock}");
+            }
+            else
+            {
+                _playerBlock.ResetBlock();
+                Debug.Log("[TurnManager] 玩家护盾已清空");
+            }
+        }
 
         OnShieldCleared?.Invoke();
-        Debug.Log("[TurnManager] 玩家护盾已清空");
         yield return new WaitForSeconds(_phaseDelay * 0.5f);
     }
 

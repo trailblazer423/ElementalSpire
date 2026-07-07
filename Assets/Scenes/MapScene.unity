@@ -1864,6 +1864,9 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 3398754541782933655, guid: a723043de57a9464ab7af63cd15b825c, type: 3}
   m_PrefabInstance: {fileID: 5136679654057253392}
   m_PrefabAsset: {fileID: 0}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

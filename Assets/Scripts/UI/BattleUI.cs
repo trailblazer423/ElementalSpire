@@ -47,6 +47,7 @@ public class BattleUI : MonoBehaviour
         ">>> 抽牌阶段",       // DrawPhase
         ">>> 我方行动",       // PlayerAction
         ">>> 弃牌阶段",       // DiscardPhase
+        ">>> 中毒结算",       // PoisonTickPhase
         ">>> 敌人行动",       // EnemyAction
         ">>> 护盾清空",       // ShieldClear
         ">>> 回合结束"        // TurnEnd

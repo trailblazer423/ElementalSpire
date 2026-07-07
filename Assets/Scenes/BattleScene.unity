@@ -287,6 +287,7 @@ GameObject:
   - component: {fileID: 468120970}
   - component: {fileID: 468120969}
   - component: {fileID: 468120973}
+  - component: {fileID: 468120974}
   m_Layer: 0
   m_Name: Enemy
   m_TagString: Untagged
@@ -360,6 +361,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _poison: 0
+--- !u!114 &468120974
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 468120968}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2bac25dc4ca5c2d4d8caec34f0524154, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  attackDamage: 6
+  defendAmount: 5
 --- !u!1 &691318124
 GameObject:
   m_ObjectHideFlags: 0
@@ -598,7 +613,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _playerObject: {fileID: 415109997}
   _enemyObject: {fileID: 468120968}
-  _startingDeck: 0
+  _startingDeck: 1
 --- !u!1 &1532884584
 GameObject:
   m_ObjectHideFlags: 0

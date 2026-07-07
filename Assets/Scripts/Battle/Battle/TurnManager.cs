@@ -12,6 +12,7 @@ public enum BattlePhase
     DrawPhase,          // 抽牌
     PlayerAction,       // 我方行动
     DiscardPhase,       // 弃掉未使用的手牌
+    PoisonTickPhase,    // 中毒结算
     EnemyAction,        // 敌人行动
     ShieldClear,        // 护盾清空
     TurnEnd             // 回合结束
@@ -45,6 +46,7 @@ public class TurnManager : MonoBehaviour
     public event Action OnPlayerActionStarted;
     public event Action OnPlayerActionEnded;
     public event Action OnDiscardPhase;
+    public event Action OnPoisonTickPhase;
     public event Action OnEnemyActionStarted;
     public event Action OnEnemyActionEnded;
     public event Action OnShieldCleared;
@@ -142,15 +144,19 @@ public class TurnManager : MonoBehaviour
             yield return StartCoroutine(ExecutePhase_DiscardPhase());
             if (!_isRunning) yield break;
 
-            // 6. 敌人行动
+            // 6. 中毒结算
+            yield return StartCoroutine(ExecutePhase_PoisonTickPhase());
+            if (!_isRunning) yield break;
+
+            // 7. 敌人行动
             yield return StartCoroutine(ExecutePhase_EnemyAction());
             if (!_isRunning) yield break;
 
-            // 7. 护盾清空
+            // 8. 护盾清空
             yield return StartCoroutine(ExecutePhase_ShieldClear());
             if (!_isRunning) yield break;
 
-            // 8. 回合结束
+            // 9. 回合结束
             yield return StartCoroutine(ExecutePhase_TurnEnd());
 
             _currentTurn++;
@@ -214,6 +220,14 @@ public class TurnManager : MonoBehaviour
         yield return new WaitForSeconds(_phaseDelay * 0.3f);
     }
 
+    private IEnumerator ExecutePhase_PoisonTickPhase()
+    {
+        SetPhase(BattlePhase.PoisonTickPhase);
+        OnPoisonTickPhase?.Invoke();
+        Debug.Log("[TurnManager] 中毒结算阶段");
+        yield return new WaitForSeconds(_phaseDelay * 0.3f);
+    }
+
     private IEnumerator ExecutePhase_EnemyAction()
     {
         SetPhase(BattlePhase.EnemyAction);
@@ -234,13 +248,12 @@ public class TurnManager : MonoBehaviour
     {
         SetPhase(BattlePhase.ShieldClear);
 
+        // 只清除玩家护盾，敌人护盾保留到下一回合以吸收玩家伤害
         if (_playerBlock != null)
             _playerBlock.ResetBlock();
-        if (_enemyBlock != null)
-            _enemyBlock.ResetBlock();
 
         OnShieldCleared?.Invoke();
-        Debug.Log("[TurnManager] 护盾已清空");
+        Debug.Log("[TurnManager] 玩家护盾已清空");
         yield return new WaitForSeconds(_phaseDelay * 0.5f);
     }
 

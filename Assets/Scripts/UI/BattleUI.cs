@@ -24,8 +24,10 @@ public class BattleUI : MonoBehaviour
     private Text _playerHPText;
     private Text _playerEnergyText;
     private Text _playerBlockText;
+    private Text _playerPowerText;
     private Text _enemyHPText;
     private Text _enemyBlockText;
+    private Text _enemyPoisonText;
     private Text _drawPileText;
     private Text _discardPileText;
     private Button _endTurnButton;
@@ -140,6 +142,10 @@ public class BattleUI : MonoBehaviour
 
         _enemyHPText = CreateText("EnemyHPText", "HP: 15/15", 24, Color.red, new Vector2(400, 0), font);
         _enemyBlockText = CreateText("EnemyBlockText", "", 24, Color.yellow, new Vector2(400, -40), font);
+
+        // 状态显示
+        _playerPowerText = CreateText("PlayerPowerText", "", 22, new Color(1f, 0.5f, 0f), new Vector2(-400, -120), font);
+        _enemyPoisonText = CreateText("EnemyPoisonText", "", 22, new Color(0.3f, 0.8f, 0.1f), new Vector2(400, -80), font);
 
         // 牌库信息（左下角）
         _drawPileText = CreateText("DrawPileText", "抽牌堆: 0", 18, Color.white, new Vector2(-700, -300), font);
@@ -435,12 +441,22 @@ public class BattleUI : MonoBehaviour
             int block = _playerBlockComponent.CurrentBlock;
             _playerBlockText.text = block > 0 ? $"护盾: {block}" : "";
         }
+        if (_playerPowerText != null)
+        {
+            int power = _battleManager?.PlayerState?.power ?? 0;
+            _playerPowerText.text = power > 0 ? $"力量: {power}" : "";
+        }
         if (_enemyHPComponent != null && _enemyHPText != null)
             _enemyHPText.text = $"HP: {_enemyHPComponent.CurrentHP}/{_enemyHPComponent.MaxHP}";
         if (_enemyBlockComponent != null && _enemyBlockText != null)
         {
             int block = _enemyBlockComponent.CurrentBlock;
             _enemyBlockText.text = block > 0 ? $"护盾: {block}" : "";
+        }
+        if (_enemyPoisonText != null)
+        {
+            int poison = _battleManager?.EnemyState?.poison ?? 0;
+            _enemyPoisonText.text = poison > 0 ? $"中毒: {poison}" : "";
         }
     }
 

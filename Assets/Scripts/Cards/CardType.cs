@@ -12,4 +12,8 @@ namespace ElementalSpire.Cards
         Power = 8,
         Trick = 16
     }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 99e5abd798f66cd74949796d58d094da10fab04c

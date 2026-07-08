@@ -55,6 +55,7 @@ public class currentEnergy : MonoBehaviour
     public int CurrentEnergy
     {
         get { return _currentEnergy; }
+        set { _currentEnergy = Mathf.Clamp(value, 0, MaxEnergy); }
     }
 
     public int MaxEnergy

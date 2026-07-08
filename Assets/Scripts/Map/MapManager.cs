@@ -2,6 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using ElementalSpire.Cards;
+using System.Linq;
 
 public class MapManager : MonoBehaviour
 {
@@ -36,19 +38,143 @@ public class MapManager : MonoBehaviour
 
     // ========== 按钮点击方法（符合 OnXxxClicked 规范）==========
     /// <summary>
-    /// 进入战斗按钮点击
-    /// </summary>
-    public void OnEnterBattleClicked()
-    {
-        SceneManager.LoadScene("BattleScene");
-    }
-
-    /// <summary>
     /// 返回主菜单按钮点击
     /// </summary>
     public void OnBackToMainMenuClicked()
     {
         SceneManager.LoadScene("MainMenuScene");
+    }
+
+    /// <summary>
+    /// 游戏开局完整流程：选元素 → 发10张基础牌 → 3次自选 → 解锁第1关
+    /// </summary>
+    private IEnumerator GameStartFlow()
+    {
+        // 1. 弹出元素选择UI，等待玩家选2个元素
+        ElementType eleA = ElementType.None;
+        ElementType eleB = ElementType.None;
+        bool elementSelected = false;
+
+        // 和UI同学约定接口：玩家选完后回调赋值
+        // 示例：UIManager.Instance.ShowElementSelectPanel((a, b) => { ... });
+        // 暂时可以先用默认值测试，后续替换成真实UI调用
+        eleA = ElementType.Fire;
+        eleB = ElementType.Poison;
+        elementSelected = true;
+
+        yield return new WaitUntil(() => elementSelected);
+
+        // 2. 保存选中元素到全局
+        GameManager.Instance.mainElementA = eleA;
+        GameManager.Instance.mainElementB = eleB;
+
+        // 3. 发放10张初始无色牌（直接调用卡牌库现成方法）
+        var starterCards = CardDeckLibrary.GetStarterDeck();
+        foreach (var card in starterCards)
+        {
+            GameManager.Instance.AddCardToBag(card.cardId);
+        }
+
+        // 4. 执行3次开局选牌（按推荐规则：偏A → 偏B → 混合）
+        // 第1次：主元素A池
+        yield return StartCoroutine(DoDraftSelect(
+            CardDeckLibrary.GetInitialDraftPool(eleA, eleA),
+            DraftPhase.Start));
+
+        // 第2次：主元素B池
+        yield return StartCoroutine(DoDraftSelect(
+            CardDeckLibrary.GetInitialDraftPool(eleB, eleB),
+            DraftPhase.Start));
+
+        // 第3次：双元素混合池
+        yield return StartCoroutine(DoDraftSelect(
+            CardDeckLibrary.GetInitialDraftPool(eleA, eleB),
+            DraftPhase.Start));
+
+        // 5. 解锁第1个节点（ID=1）
+        UnlockNextNodes(0);
+
+        // 6. 标记初始化完成，刷新所有节点视图
+        GameManager.Instance.gameInitialized = true;
+        RefreshAllNodes();
+    }
+
+    /// <summary>
+    /// 执行一次三选一卡牌自选，可跳过
+    /// </summary>
+    private IEnumerator DoDraftSelect(IEnumerable<CardData> fullPool, DraftPhase phase, bool canSkip = true)
+    {
+        // 按稀有度权重随机抽3张候选牌
+        List<CardData> options = GetRandomCardsByRarity(
+            fullPool.ToList(), 3, GameManager.Instance.currentFloor, phase);
+
+        CardData selectedCard = null;
+        bool selectDone = false;
+
+        // 调用UI显示三选一，玩家选择后回调
+        // 示例：UIManager.Instance.ShowCardSelectPanel(options, canSkip, card => { ... });
+        // 测试阶段可以默认选第一张，跳过返回null
+        selectedCard = options.Count > 0 ? options[0] : null;
+        selectDone = true;
+
+        yield return new WaitUntil(() => selectDone);
+
+        // 没跳过就加入永久牌库
+        if (selectedCard != null)
+        {
+            GameManager.Instance.AddCardToBag(selectedCard.cardId);
+        }
+    }
+
+    /// <summary>
+    /// 按稀有度权重从牌池中随机抽取指定数量卡牌
+    /// </summary>
+    private List<CardData> GetRandomCardsByRarity(
+        List<CardData> pool, int count, int floor, DraftPhase phase)
+    {
+        if (pool.Count <= count) return new List<CardData>(pool);
+
+        // 按阶段设置稀有度权重，完全对应规则表
+        (int common, int rare, int precious) = phase switch
+        {
+            DraftPhase.Start => (80, 20, 0),
+            DraftPhase.Battle1_3 => (75, 25, 0),
+            DraftPhase.Battle4_7 => (55, 35, 10),
+            DraftPhase.Battle8_10 => (35, 40, 25),
+            _ => (80, 20, 0)
+        };
+
+        List<CardData> result = new List<CardData>();
+        List<CardData> remaining = new List<CardData>(pool);
+
+        for (int i = 0; i < count; i++)
+        {
+            if (remaining.Count == 0) break;
+
+            // 随机决定本次稀有度
+            int total = common + rare + precious;
+            int roll = Random.Range(0, total);
+            string targetRarity;
+
+            if (roll < common)
+                targetRarity = CardDeckLibrary.Common;
+            else if (roll < common + rare)
+                targetRarity = CardDeckLibrary.Rare;
+            else
+                targetRarity = CardDeckLibrary.Precious;
+
+            // 筛选对应稀有度的牌，没有就从全部里兜底
+            var rarityPool = remaining.Where(c => c.rarity == targetRarity).ToList();
+            if (rarityPool.Count == 0)
+                rarityPool = remaining;
+
+            // 随机抽一张，避免重复
+            CardData picked = rarityPool[Random.Range(0, rarityPool.Count)];
+            result.Add(picked);
+            remaining.Remove(picked);
+        }
+
+        return result;
     }
 
     // ========== 地图核心逻辑 ==========
@@ -62,6 +188,12 @@ public class MapManager : MonoBehaviour
 
         EnsureRewardManager();
         EnsureGameManager();
+
+        if (!GameManager.Instance.gameInitialized)
+        {
+            StartCoroutine(GameStartFlow());
+            return; // 初始化完成前不执行后续逻辑
+        }
 
         Debug.Log($"[MapManager] 地图加载，isBattleWin={GameManager.Instance?.isBattleWin}, currentFloor={GameManager.Instance?.currentFloor}, AllMapNodes数量={(AllMapNodes != null ? AllMapNodes.Length : 0)}");
 
@@ -196,6 +328,13 @@ public class MapManager : MonoBehaviour
         Debug.Log("[MapManager] GameManager 不存在，已自动创建");
     }
 
+    private enum DraftPhase
+    {
+        Start,      // 开局选牌
+        Battle1_3,  // 1-3关战斗奖励
+        Battle4_7,  // 4-7关战斗奖励
+        Battle8_10  // 8-10关战斗奖励
+    }
 
     /// <summary>
     /// 所有地图节点点击的统一入口（占位方法，后续步骤补全逻辑）

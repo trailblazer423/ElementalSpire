@@ -20,7 +20,7 @@ public class BattleManager : MonoBehaviour
     [SerializeField] private bool _useDemoMixedDeck = true;
 
     [Header("场景流转")]
-    [SerializeField] private bool _returnToMapOnWin = true;
+    [SerializeField] private bool _returnToMapOnWin = false;
     [SerializeField] private string _mapSceneName = "MapScene";
     [SerializeField] private float _returnToMapDelay = 1.0f;
 
@@ -369,6 +369,8 @@ public class BattleManager : MonoBehaviour
         if (_turnManager != null)
             _turnManager.StopBattle();
 
+        Debug.Log($"[BattleManager] EndBattle({result}), isBattleWin即将设为{result == "win"}，GameManager.Instance={(GameManager.Instance != null ? "存在" : "为空")}");
+
         SyncGameManagerBattleResult(result);
         OnBattleOver?.Invoke(result);
         LogBattleEvent(result == "win" ? "战斗胜利。" : "战斗失败。");
@@ -382,9 +384,14 @@ public class BattleManager : MonoBehaviour
     private void SyncGameManagerBattleResult(string result)
     {
         if (GameManager.Instance == null)
+        {
+            Debug.LogError("[BattleManager] SyncGameManagerBattleResult: GameManager.Instance 为空！");
             return;
+        }
 
         GameManager.Instance.isBattleWin = result == "win";
+        Debug.Log($"[BattleManager] SyncGameManagerBattleResult: 已设置 isBattleWin={GameManager.Instance.isBattleWin}");
+
         if (_playerHP != null)
             GameManager.Instance.playerHp = _playerHP.CurrentHP;
         if (_playerEnergy != null)

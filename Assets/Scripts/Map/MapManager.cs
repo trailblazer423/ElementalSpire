@@ -60,51 +60,154 @@ public class MapManager : MonoBehaviour
         // 只在加载地图场景时生效
         if (scene.name != "MapScene") return;
 
-        // 从战斗胜利返回时，更新节点进度
-        if (GameManager.Instance.isBattleWin)
+        EnsureRewardManager();
+        EnsureGameManager();
+
+        Debug.Log($"[MapManager] 地图加载，isBattleWin={GameManager.Instance?.isBattleWin}, currentFloor={GameManager.Instance?.currentFloor}, AllMapNodes数量={(AllMapNodes != null ? AllMapNodes.Length : 0)}");
+
+        if (GameManager.Instance != null && GameManager.Instance.isBattleWin)
         {
             int winNodeId = GameManager.Instance.currentNodeId;
+            bool isLastNode = GameManager.Instance.IsLastNodeOfFloor();
+            Debug.Log($"[MapManager] 处理胜利，winNodeId={winNodeId}, isLastNode={isLastNode}");
 
             foreach (var node in AllMapNodes)
             {
-                // 标记当前节点为已通关
+                if (node == null)
+                {
+                    Debug.LogWarning("[MapManager] AllMapNodes 中存在空引用！请检查 Inspector 数组");
+                    continue;
+                }
+
                 if (node.NodeId == winNodeId)
                 {
                     node.IsCleared = true;
                     // 调用全局奖励管理器发放通关奖励
                     RewardManager.Instance.GrantReward(node.ClearReward);
                 }
-
-                // 线性解锁：下一个ID的节点变为可点击
-                if (node.NodeId == winNodeId + 1)
+                else if (!isLastNode && node.NodeId == winNodeId + 1)
                 {
                     node.IsUnlocked = true;
                 }
             }
 
-            // 重置战斗胜利标记，避免重复触发
+            if (isLastNode)
+            {
+                // 尝试推进到下一关
+                bool hasNextFloor = GameManager.Instance.AdvanceToNextFloor();
+                if (!hasNextFloor)
+                {
+                    // 第3关通关，回到主菜单
+                    Debug.Log("[MapManager] 全部3关通关，游戏胜利！");
+                    SceneManager.LoadScene("MainMenuScene");
+                    return;
+                }
+
+                // 有下一关，重置所有节点（复用同一组10个节点）
+                Debug.Log($"[MapManager] 进入第 {GameManager.Instance.currentFloor} 关");
+                ResetNodesForNewFloor();
+                RefreshAllNodes();
+                return;
+            }
+
             GameManager.Instance.isBattleWin = false;
         }
 
-        // 刷新所有节点的显示状态
+        RefreshAllNodes();
+    }
+
+    private void RefreshAllNodes()
+    {
         foreach (var node in AllMapNodes)
         {
-            node.RefreshView();
+            if (node != null)
+                node.RefreshView();
         }
     }
 
     /// <summary>
-    /// 解锁指定节点的下一个节点，供节点脚本内部调用
+    /// 重置所有节点（复用同一组10个节点），解锁最小NodeId的节点（节点1）。
     /// </summary>
+    private void ResetNodesForNewFloor()
+    {
+        int minNodeId = int.MaxValue;
+        int resetCount = 0;
+
+        foreach (var node in AllMapNodes)
+        {
+            if (node == null)
+            {
+                Debug.LogWarning("[MapManager] ResetNodesForNewFloor: 遇到空引用");
+                continue;
+            }
+
+            node.IsCleared = false;
+            node.IsUnlocked = false;
+            resetCount++;
+
+            if (node.NodeId < minNodeId)
+                minNodeId = node.NodeId;
+        }
+
+        Debug.Log($"[MapManager] 重置了 {resetCount} 个节点，最小 NodeId={minNodeId}");
+
+        if (minNodeId == int.MaxValue)
+        {
+            Debug.LogError("[MapManager] 没有找到任何有效节点！请检查 AllMapNodes 数组");
+            return;
+        }
+
+        // 解锁最小NodeId的节点（即节点1）
+        foreach (var node in AllMapNodes)
+        {
+            if (node != null && node.NodeId == minNodeId)
+            {
+                node.IsUnlocked = true;
+                Debug.Log($"[MapManager] 解锁节点 NodeId={node.NodeId}");
+                break;
+            }
+        }
+    }
+
     public void UnlockNextNodes(int currentNodeId)
     {
         foreach (var node in AllMapNodes)
         {
-            if (node.NodeId == currentNodeId + 1)
+            if (node != null && node.NodeId == currentNodeId + 1)
             {
                 node.IsUnlocked = true;
                 node.RefreshView();
             }
+        }
+    }
+
+    private void EnsureRewardManager()
+    {
+        if (RewardManager.Instance != null) return;
+        new GameObject("RewardManager", typeof(RewardManager));
+    }
+
+    private void EnsureGameManager()
+    {
+        if (GameManager.Instance != null) return;
+        var go = new GameObject("GameManager");
+        go.AddComponent<GameManager>();
+        Object.DontDestroyOnLoad(go);
+        Debug.Log("[MapManager] GameManager 不存在，已自动创建");
+    }
+
+
+    /// <summary>
+    /// 所有地图节点点击的统一入口（占位方法，后续步骤补全逻辑）
+    /// </summary>
+    public void OnNodeClicked(int nodeId, string nodeType)
+    {
+        // 临时兼容：战斗节点照旧切场景，其他类型先不处理
+        if (nodeType == "Normal" || nodeType == "Elite" || nodeType == "Boss")
+        {
+            GameManager.Instance.currentNodeId = nodeId;
+            GameManager.Instance.currentNodeType = nodeType;
+            SceneManager.LoadScene("BattleScene");
         }
     }
 }

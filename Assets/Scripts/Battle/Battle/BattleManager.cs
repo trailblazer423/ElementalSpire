@@ -132,20 +132,19 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    private IEnumerable<CardData> BuildInitialDeck()
+    private IEnumerable<CardInstance> BuildInitialDeck()
     {
         var gameManager = GameManager.Instance;
         if (!_useDemoMixedDeck && gameManager != null && gameManager.playerCardBag != null && gameManager.playerCardBag.Count > 0)
         {
-            var deck = CardDeckLibrary.GetStarterDeck().ToList();
-            var allCards = CardDeckLibrary.GetAllCards();
-            foreach (string cardId in gameManager.playerCardBag)
+            var deck = CardDeckLibrary.GetStarterCardInstances().ToList();
+            foreach (string savedCardId in gameManager.playerCardBag)
             {
-                CardData card = allCards.FirstOrDefault(data => data.cardId == cardId);
+                CardInstance card = CreateCardInstanceFromSavedId(savedCardId);
                 if (card != null)
                     deck.Add(card);
                 else
-                    Debug.LogWarning($"[BattleManager] 未找到奖励卡牌ID: {cardId}");
+                    Debug.LogWarning($"[BattleManager] 未找到奖励卡牌ID: {savedCardId}");
             }
 
             if (deck.Count > 0)
@@ -156,25 +155,43 @@ public class BattleManager : MonoBehaviour
         {
             return new[]
             {
-                CardDeckLibrary.GetCardById("fire_hilt_strike"),
-                CardDeckLibrary.GetCardById("water_blade"),
-                CardDeckLibrary.GetCardById("poison_blade"),
-                CardDeckLibrary.GetCardById("water_curtain"),
-                CardDeckLibrary.GetCardById("color_blank_strike"),
-                CardDeckLibrary.GetCardById("poison_sneak_needle"),
-                CardDeckLibrary.GetCardById("fire_double_strike"),
-                CardDeckLibrary.GetCardById("water_gather"),
-                CardDeckLibrary.GetCardById("poison_smoke_bomb"),
-                CardDeckLibrary.GetCardById("color_neutral_arrow"),
-                CardDeckLibrary.GetCardById("fire_bloodletting"),
-                CardDeckLibrary.GetCardById("water_surge"),
-                CardDeckLibrary.GetCardById("poison_roll"),
-                CardDeckLibrary.GetCardById("fire_perfect_strike"),
-                CardDeckLibrary.GetCardById("water_wave_guard"),
+                new CardInstance("fire_hilt_strike"),
+                new CardInstance("water_blade"),
+                new CardInstance("poison_blade"),
+                new CardInstance("water_curtain"),
+                new CardInstance("color_blank_strike"),
+                new CardInstance("poison_sneak_needle"),
+                new CardInstance("fire_double_strike"),
+                new CardInstance("water_gather"),
+                new CardInstance("poison_smoke_bomb"),
+                new CardInstance("color_neutral_arrow"),
+                new CardInstance("fire_bloodletting"),
+                new CardInstance("water_surge"),
+                new CardInstance("poison_roll"),
+                new CardInstance("fire_perfect_strike"),
+                new CardInstance("water_wave_guard"),
             };
         }
 
-        return CardDeckLibrary.GetCardsByDeckPreset(_startingDeck);
+        return CardDeckLibrary.GetCardsByDeckPreset(_startingDeck)
+            .Select(card => new CardInstance(card.cardId));
+    }
+
+    private CardInstance CreateCardInstanceFromSavedId(string savedCardId)
+    {
+        if (string.IsNullOrEmpty(savedCardId))
+            return null;
+
+        string cardId = savedCardId;
+        bool isUpgraded = false;
+        if (cardId.EndsWith("+"))
+        {
+            isUpgraded = true;
+            cardId = cardId.Substring(0, cardId.Length - 1);
+        }
+
+        CardData cardData = CardDeckLibrary.GetCardById(cardId);
+        return cardData != null ? new CardInstance(cardId, isUpgraded) : null;
     }
 
     private void OnTurnStarted(int turn)
@@ -223,7 +240,6 @@ public class BattleManager : MonoBehaviour
             LogBattleEvent($"中毒结算：造成 {poisonDamage} 点伤害，剩余中毒 {_enemyState.PoisonStacks}。");
             OnBattleInfoChanged?.Invoke();
 
-            // 检查敌人是否被毒死
             if (_enemyHP.CurrentHP <= 0)
             {
                 EndBattle("win");
@@ -295,22 +311,37 @@ public class BattleManager : MonoBehaviour
 
     public void PlayCard(CardData cardData, ElementType chosenElement)
     {
+        if (cardData == null || _deckManager == null) return;
+        CardInstance cardInstance = _deckManager.handCards.FirstOrDefault(card => card.cardId == cardData.cardId);
+        PlayCard(cardInstance, chosenElement);
+    }
+
+    public void PlayCard(CardInstance cardInstance)
+    {
+        PlayCard(cardInstance, ElementType.None);
+    }
+
+    public void PlayCard(CardInstance cardInstance, ElementType chosenElement)
+    {
         if (_isBattleOver) return;
         if (_turnManager == null || _turnManager.CurrentPhase != BattlePhase.PlayerAction) return;
-        if (_deckManager == null || !_deckManager.handCards.Contains(cardData)) return;
+        if (_deckManager == null || cardInstance == null || !_deckManager.handCards.Contains(cardInstance)) return;
 
-        if (!CanAffordCard(cardData))
+        CardData cardData = cardInstance.GetCardData();
+        if (cardData == null) return;
+
+        if (!CanAffordCard(cardInstance))
         {
             LogBattleEvent($"资源不足：无法打出 {cardData.cardName}。");
             return;
         }
 
-        _playerEnergy?.SpendEnergy(cardData.cost);
-        SpendWaterCost(cardData);
+        _playerEnergy?.SpendEnergy(cardInstance.GetEnergyCost());
+        SpendWaterCost(cardInstance);
 
-        LogBattleEvent($"打出 {cardData.cardName}。");
-        _cardEffectResolver?.ResolveEffect(cardData, chosenElement);
-        _deckManager.PlayCard(cardData);
+        LogBattleEvent($"打出 {cardData.cardName}{(cardInstance.isUpgraded ? "+" : string.Empty)}。");
+        _cardEffectResolver?.ResolveEffect(cardInstance, chosenElement);
+        _deckManager.PlayCard(cardInstance);
 
         OnHandChanged?.Invoke();
         OnBattleInfoChanged?.Invoke();
@@ -319,25 +350,35 @@ public class BattleManager : MonoBehaviour
     public bool CanAffordCard(CardData cardData)
     {
         if (cardData == null) return false;
+        return CanAffordCard(new CardInstance(cardData.cardId));
+    }
 
-        bool hasEnergy = _playerEnergy == null || _playerEnergy.HasEnoughEnergy(cardData.cost);
-        bool hasWater = _playerState == null || _playerState.HasEnoughWater(cardData.waterCost);
+    public bool CanAffordCard(CardInstance cardInstance)
+    {
+        if (cardInstance == null) return false;
+
+        bool hasEnergy = _playerEnergy == null || _playerEnergy.HasEnoughEnergy(cardInstance.GetEnergyCost());
+        bool hasWater = _playerState == null || _playerState.HasEnoughWater(cardInstance.GetWaterCost());
         return hasEnergy && hasWater;
     }
 
-    private void SpendWaterCost(CardData cardData)
+    private void SpendWaterCost(CardInstance cardInstance)
     {
-        if (cardData == null || cardData.waterCost <= 0 || _playerState == null)
+        if (cardInstance == null || _playerState == null)
             return;
 
-        if (!_playerState.SpendWater(cardData.waterCost))
+        int waterCost = cardInstance.GetWaterCost();
+        if (waterCost <= 0)
             return;
 
-        LogBattleEvent($"消耗 {cardData.waterCost} 点水源，当前水源 {_playerState.WaterSource}。");
+        if (!_playerState.SpendWater(waterCost))
+            return;
+
+        LogBattleEvent($"消耗 {waterCost} 点水源，当前水源 {_playerState.WaterSource}。");
 
         if (_playerState.LakeEchoBlockPerWater > 0)
         {
-            int block = _playerState.LakeEchoBlockPerWater * cardData.waterCost;
+            int block = _playerState.LakeEchoBlockPerWater * waterCost;
             _playerBlock?.AddBlock(block);
             LogBattleEvent($"星湖回响：获得 {block} 点格挡。");
         }
@@ -438,7 +479,3 @@ public class BattleManager : MonoBehaviour
     }
 #endif
 }
-
-
-
-

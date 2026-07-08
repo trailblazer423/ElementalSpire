@@ -204,7 +204,7 @@ public class BattleUI : MonoBehaviour
 
         for (int i = 0; i < hand.Count; i++)
         {
-            CardData card = hand[i];
+            CardInstance card = hand[i];
             var cardView = CardView.Create(_handArea, card, _font, OnCardClicked);
             _cardViews.Add(cardView);
 
@@ -221,7 +221,7 @@ public class BattleUI : MonoBehaviour
         RefreshAllInfo();
     }
 
-    private bool CanAffordCard(CardData card)
+    private bool CanAffordCard(CardInstance card)
     {
         return _battleManager != null && _battleManager.CanAffordCard(card);
     }
@@ -239,9 +239,9 @@ public class BattleUI : MonoBehaviour
             _powerPileText.text = $"能力区: {_battleManager.DeckManager.PowerPileCount}";
     }
 
-    private void OnCardClicked(CardData cardData, ElementType chosenElement)
+    private void OnCardClicked(CardInstance cardInstance, ElementType chosenElement)
     {
-        _battleManager?.PlayCard(cardData, chosenElement);
+        _battleManager?.PlayCard(cardInstance, chosenElement);
     }
 
     private Font GetFont()
@@ -520,5 +520,3 @@ public class BattleUI : MonoBehaviour
         _turnManager?.EndPlayerTurn();
     }
 }
-
-

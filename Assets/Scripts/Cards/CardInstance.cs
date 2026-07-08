@@ -5,6 +5,8 @@
     {
         public string cardId;
         public bool isUpgraded;
+        public int energyCostModifier;
+        public int waterCostModifier;
 
         public CardInstance()
         {
@@ -23,12 +25,26 @@
 
         public int GetEnergyCost()
         {
-            return GetCardData().GetEnergyCost(isUpgraded);
+            CardData data = GetCardData();
+            if (data == null) return 0;
+
+            int finalCost = data.GetEnergyCost(isUpgraded) + energyCostModifier;
+            return finalCost > 0 ? finalCost : 0;
         }
 
         public int GetWaterCost()
         {
-            return GetCardData().GetWaterCost(isUpgraded);
+            CardData data = GetCardData();
+            if (data == null) return 0;
+
+            int finalCost = data.GetWaterCost(isUpgraded) + waterCostModifier;
+            return finalCost > 0 ? finalCost : 0;
+        }
+
+        public void ClearTemporaryCostModifiers()
+        {
+            energyCostModifier = 0;
+            waterCostModifier = 0;
         }
     }
 }

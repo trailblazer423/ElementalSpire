@@ -63,6 +63,26 @@ public class BattleManager : MonoBehaviour
     {
         CacheComponents();
 
+        // 从 GameManager 读取角色状态到战斗组件
+        if (GameManager.Instance != null)
+        {
+            if (_playerHP != null)
+                _playerHP.CurrentHP = GameManager.Instance.playerHp;
+
+            var maxHpComp = _playerObject?.GetComponent<playerMaxHP>();
+            if (maxHpComp != null)
+                maxHpComp.maxHP = GameManager.Instance.playerMaxHp;
+
+            var maxEnergyComp = _playerObject?.GetComponent<maxEnergy>();
+            if (maxEnergyComp != null)
+                maxEnergyComp.energyMax = GameManager.Instance.maxEnergy;
+
+            if (_playerEnergy != null)
+                _playerEnergy.CurrentEnergy = GameManager.Instance.currentEnergy;
+
+            // 格挡值每场战斗重置为0，不继承
+        }
+
         _playerState?.ResetCombatState();
         _enemyState?.ResetCombatState();
 
@@ -85,7 +105,7 @@ public class BattleManager : MonoBehaviour
         }
 
         _deckManager = new DeckManager(_drawPile, _handCards, _discardPile);
-        _deckManager.Initialize(BuildInitialDeck(), !_useDemoMixedDeck);
+        _deckManager.Initialize(BuildInitialDeck(), shuffle: true);
 
         _cardEffectResolver = new CardEffectResolver(this, _deckManager, _playerEnergy, _playerBlock, _playerHP, _playerState);
     }
@@ -164,22 +184,25 @@ public class BattleManager : MonoBehaviour
     private IEnumerable<CardInstance> BuildInitialDeck()
     {
         var gameManager = GameManager.Instance;
-        if (!_useDemoMixedDeck && gameManager != null && gameManager.playerCardBag != null && gameManager.playerCardBag.Count > 0)
+
+        // 优先使用地图中存储的玩家卡牌背包（已包含初始牌 + 选牌 + 奖励牌）
+        if (gameManager != null && gameManager.playerCardBag != null && gameManager.playerCardBag.Count > 0)
         {
-            var deck = CardDeckLibrary.GetStarterCardInstances().ToList();
+            var deck = new List<CardInstance>();
             foreach (string savedCardId in gameManager.playerCardBag)
             {
                 CardInstance card = CreateCardInstanceFromSavedId(savedCardId);
                 if (card != null)
                     deck.Add(card);
                 else
-                    Debug.LogWarning($"[BattleManager] 未找到奖励卡牌ID: {savedCardId}");
+                    Debug.LogWarning($"[BattleManager] 未找到卡牌ID: {savedCardId}");
             }
 
             if (deck.Count > 0)
                 return deck;
         }
 
+        // 无地图数据时使用演示牌组（测试用）
         if (_useDemoMixedDeck)
         {
             return new[]
@@ -479,6 +502,14 @@ public class BattleManager : MonoBehaviour
             GameManager.Instance.currentEnergy = _playerEnergy.CurrentEnergy;
         if (_playerBlock != null)
             GameManager.Instance.playerBlock = _playerBlock.CurrentBlock;
+
+        // 同步最大血量与最大能量
+        var maxHpComp = _playerObject?.GetComponent<playerMaxHP>();
+        if (maxHpComp != null)
+            GameManager.Instance.playerMaxHp = maxHpComp.maxHP;
+        var maxEnergyComp = _playerObject?.GetComponent<maxEnergy>();
+        if (maxEnergyComp != null)
+            GameManager.Instance.maxEnergy = maxEnergyComp.energyMax;
     }
 
     private IEnumerator ReturnToMapAfterDelay()

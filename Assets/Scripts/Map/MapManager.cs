@@ -50,53 +50,50 @@ public class MapManager : MonoBehaviour
     /// </summary>
     private IEnumerator GameStartFlow()
     {
-        // 1. 弹出元素选择UI，等待玩家选2个元素
-        ElementType eleA = ElementType.None;
-        ElementType eleB = ElementType.None;
-        bool elementSelected = false;
+        Debug.Log("[MapManager] ===== 开局流程开始 =====");
 
-        // 和UI同学约定接口：玩家选完后回调赋值
-        // 示例：UIManager.Instance.ShowElementSelectPanel((a, b) => { ... });
-        // 暂时可以先用默认值测试，后续替换成真实UI调用
-        eleA = ElementType.Fire;
-        eleB = ElementType.Poison;
-        elementSelected = true;
-
-        yield return new WaitUntil(() => elementSelected);
-
-        // 2. 保存选中元素到全局
+        // 1. 直接赋值测试元素，完全去掉UI等待
+        ElementType eleA = ElementType.Fire;
+        ElementType eleB = ElementType.Poison;
         GameManager.Instance.mainElementA = eleA;
         GameManager.Instance.mainElementB = eleB;
+        Debug.Log($"[MapManager] 双元素已设置：{eleA} + {eleB}");
 
-        // 3. 发放10张初始无色牌（直接调用卡牌库现成方法）
+        // 2. 发放10张初始无色牌
         var starterCards = CardDeckLibrary.GetStarterDeck();
         foreach (var card in starterCards)
         {
             GameManager.Instance.AddCardToBag(card.cardId);
         }
+        Debug.Log($"[MapManager] 初始牌发放完成，当前牌库总数：{GameManager.Instance.playerCardBag.Count}");
 
-        // 4. 执行3次开局选牌（按推荐规则：偏A → 偏B → 混合）
-        // 第1次：主元素A池
+        // 3. 执行3次开局选牌
+        Debug.Log("[MapManager] 开始第1次开局选牌（偏元素A）");
         yield return StartCoroutine(DoDraftSelect(
             CardDeckLibrary.GetInitialDraftPool(eleA, eleA),
             DraftPhase.Start));
 
-        // 第2次：主元素B池
+        Debug.Log("[MapManager] 开始第2次开局选牌（偏元素B）");
         yield return StartCoroutine(DoDraftSelect(
             CardDeckLibrary.GetInitialDraftPool(eleB, eleB),
             DraftPhase.Start));
 
-        // 第3次：双元素混合池
+        Debug.Log("[MapManager] 开始第3次开局选牌（双元素混合）");
         yield return StartCoroutine(DoDraftSelect(
             CardDeckLibrary.GetInitialDraftPool(eleA, eleB),
             DraftPhase.Start));
 
-        // 5. 解锁第1个节点（ID=1）
-        UnlockNextNodes(0);
+        Debug.Log("[MapManager] 3次选牌全部完成");
 
-        // 6. 标记初始化完成，刷新所有节点视图
+        // 4. 解锁第1个节点
+        UnlockNextNodes(0);
+        Debug.Log("[MapManager] 已执行解锁节点1");
+
+        // 5. 标记初始化完成，刷新所有节点视图
         GameManager.Instance.gameInitialized = true;
         RefreshAllNodes();
+
+        Debug.Log($"[MapManager] ===== 开局流程结束 ===== 最终牌库数：{GameManager.Instance.playerCardBag.Count}");
     }
 
     /// <summary>
@@ -104,26 +101,29 @@ public class MapManager : MonoBehaviour
     /// </summary>
     private IEnumerator DoDraftSelect(IEnumerable<CardData> fullPool, DraftPhase phase, bool canSkip = true)
     {
-        // 按稀有度权重随机抽3张候选牌
         List<CardData> options = GetRandomCardsByRarity(
             fullPool.ToList(), 3, GameManager.Instance.currentFloor, phase);
 
-        CardData selectedCard = null;
-        bool selectDone = false;
+        // 打印候选牌，方便你验证牌池是否正确
+        string cardNames = options.Count > 0
+            ? string.Join("、", options.Select(c => c.cardName))
+            : "无可用牌";
+        Debug.Log($"[MapManager] 候选牌：{cardNames}");
 
-        // 调用UI显示三选一，玩家选择后回调
-        // 示例：UIManager.Instance.ShowCardSelectPanel(options, canSkip, card => { ... });
-        // 测试阶段可以默认选第一张，跳过返回null
-        selectedCard = options.Count > 0 ? options[0] : null;
-        selectDone = true;
+        // 测试模式：默认选第一张，不等待UI
+        CardData selectedCard = options.Count > 0 ? options[0] : null;
 
-        yield return new WaitUntil(() => selectDone);
-
-        // 没跳过就加入永久牌库
         if (selectedCard != null)
         {
             GameManager.Instance.AddCardToBag(selectedCard.cardId);
+            Debug.Log($"[MapManager] 选中：{selectedCard.cardName}");
         }
+        else
+        {
+            Debug.Log("[MapManager] 本次跳过选牌");
+        }
+
+        yield return null; // 只等待一帧，不卡流程
     }
 
     /// <summary>
@@ -189,8 +189,12 @@ public class MapManager : MonoBehaviour
         EnsureRewardManager();
         EnsureGameManager();
 
+        // 新增：打印状态，确认方法是否执行
+        Debug.Log($"[MapManager] 地图加载完成，gameInitialized={GameManager.Instance.gameInitialized}");
+
         if (!GameManager.Instance.gameInitialized)
         {
+            Debug.Log("[MapManager] 进入开局初始化流程");
             StartCoroutine(GameStartFlow());
             return; // 初始化完成前不执行后续逻辑
         }

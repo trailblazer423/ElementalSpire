@@ -50,10 +50,12 @@ public class MapNode : MonoBehaviour
     {
         if (!IsUnlocked) return;
 
-        // �ѵ�ǰ�ڵ���Ϣ����ȫ�ֹ�����������ս����
-        GameManager.Instance.currentNodeId = NodeId;
-        GameManager.Instance.currentNodeType = NodeType;
-        // ��תս������
-        UnityEngine.SceneManagement.SceneManager.LoadScene("BattleScene");
+
+        // 所有节点逻辑统一交给 MapManager 处理
+        if (MapManager.Instance != null)
+        {
+            MapManager.Instance.OnNodeClicked(NodeId, NodeType);
+        }
+
     }
 }

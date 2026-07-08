@@ -35,6 +35,7 @@ public class BattleManager : MonoBehaviour
     private PlayerState _playerState;
     private EnemyState _enemyState;
     private EnemyAI _enemyAI;
+    private EnemyController _enemyController;
 
     private TurnManager _turnManager;
     private DeckManager _deckManager;
@@ -69,17 +70,24 @@ public class BattleManager : MonoBehaviour
         _turnManager = turnObj.GetComponent<TurnManager>();
         _turnManager.Initialize(_playerEnergy, _playerBlock, _enemyBlock, _playerState);
 
-        _deckManager = new DeckManager(_drawPile, _handCards, _discardPile);
-        _deckManager.Initialize(BuildInitialDeck(), !_useDemoMixedDeck);
-
-        _cardEffectResolver = new CardEffectResolver(this, _deckManager, _playerEnergy, _playerBlock, _playerHP, _playerState);
-
+        // 先注册事件，这样即使牌组初始化失败，UI 和回合流程也能正常工作
         _turnManager.OnDrawPhase += OnDrawPhase;
         _turnManager.OnDiscardPhase += OnDiscardPhase;
         _turnManager.OnPoisonTickPhase += OnPoisonTickPhase;
         _turnManager.OnEnemyActionStarted += OnEnemyTurnStart;
         _turnManager.OnEnemyActionEnded += OnEnemyTurnEnd;
         _turnManager.OnTurnStarted += OnTurnStarted;
+
+        if (_drawPile == null || _handCards == null || _discardPile == null)
+        {
+            Debug.LogError("[BattleManager] drawPile/handCards/discardPile 组件缺失，无法初始化牌组！请确保 Player 对象上挂载了这些脚本。");
+            return;
+        }
+
+        _deckManager = new DeckManager(_drawPile, _handCards, _discardPile);
+        _deckManager.Initialize(BuildInitialDeck(), !_useDemoMixedDeck);
+
+        _cardEffectResolver = new CardEffectResolver(this, _deckManager, _playerEnergy, _playerBlock, _playerHP, _playerState);
     }
 
     void Start()
@@ -112,6 +120,12 @@ public class BattleManager : MonoBehaviour
 
     private void CacheComponents()
     {
+        // 自动查找 Player 对象（如果 Inspector 未赋值）
+        if (_playerObject == null)
+            _playerObject = GameObject.FindGameObjectWithTag("Player");
+        if (_playerObject == null)
+            _playerObject = GameObject.Find("Player");
+
         if (_playerObject != null)
         {
             _playerEnergy = _playerObject.GetComponent<currentEnergy>();
@@ -122,6 +136,16 @@ public class BattleManager : MonoBehaviour
             _discardPile = _playerObject.GetComponent<discardPile>();
             _playerState = _playerObject.GetComponent<PlayerState>();
         }
+        else
+        {
+            Debug.LogError("[BattleManager] 未找到 Player 对象！请确保场景中有 Tag 为 \"Player\" 或名称为 \"Player\" 的游戏对象。");
+        }
+
+        // 自动查找 Enemy 对象（如果 Inspector 未赋值）
+        if (_enemyObject == null)
+            _enemyObject = GameObject.FindGameObjectWithTag("Enemy");
+        if (_enemyObject == null)
+            _enemyObject = GameObject.Find("Enemy");
 
         if (_enemyObject != null)
         {
@@ -129,6 +153,11 @@ public class BattleManager : MonoBehaviour
             _enemyHP = _enemyObject.GetComponent<enemyHP>();
             _enemyState = _enemyObject.GetComponent<EnemyState>();
             _enemyAI = _enemyObject.GetComponent<EnemyAI>();
+            _enemyController = _enemyObject.GetComponent<EnemyController>();
+        }
+        else
+        {
+            Debug.LogError("[BattleManager] 未找到 Enemy 对象！请确保场景中有 Tag 为 \"Enemy\" 或名称为 \"Enemy\" 的游戏对象。");
         }
     }
 
@@ -255,6 +284,12 @@ public class BattleManager : MonoBehaviour
 
     private void OnEnemyTurnEnd()
     {
+        // 决定下一次意图，供玩家在己方回合查看
+        _enemyController?.DecideNextIntent();
+
+        // 通知 UI 更新（包含意图文字）
+        OnBattleInfoChanged?.Invoke();
+
         LogBattleEvent("敌人行动结束。");
     }
 
@@ -266,7 +301,12 @@ public class BattleManager : MonoBehaviour
             yield break;
         }
 
-        if (_enemyAI != null)
+        if (_enemyController != null)
+        {
+            _enemyController.ExecuteTurn();
+            LogBattleEvent($"敌人执行 {_enemyController.GetCurrentIntent()}（数值 {_enemyController.GetIntentValue()}）。");
+        }
+        else if (_enemyAI != null)
         {
             _enemyAI.ExecuteTurn();
         }

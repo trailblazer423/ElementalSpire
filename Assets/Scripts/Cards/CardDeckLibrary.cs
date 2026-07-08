@@ -63,7 +63,7 @@ namespace ElementalSpire.Cards
 
         public static CardData GetCardById(string cardId)
         {
-            return cardDataList.First(cardData => cardData.cardId == cardId);
+            return cardDataList.FirstOrDefault(cardData => cardData.cardId == cardId);
         }
 
         public static IEnumerable<CardData> GetStarterDeck()
@@ -198,4 +198,3 @@ namespace ElementalSpire.Cards
         }
     }
 }
-

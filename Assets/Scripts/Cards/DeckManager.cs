@@ -4,24 +4,25 @@ using ElementalSpire.Cards;
 
 /// <summary>
 /// 牌组管理器 - 操作 Player 上的 drawPile / handCards / discardPile 组件。
+/// CardData 是静态卡表，CardInstance 才是战斗中的具体牌。
 /// </summary>
 public class DeckManager
 {
-    private drawPile _drawPile;
-    private handCards _handCards;
-    private discardPile _discardPile;
-    private List<CardData> _exhaustPile = new List<CardData>();
-    private List<CardData> _powerPile = new List<CardData>();
+    private readonly drawPile _drawPile;
+    private readonly handCards _handCards;
+    private readonly discardPile _discardPile;
+    private readonly List<CardInstance> _exhaustPile = new List<CardInstance>();
+    private readonly List<CardInstance> _powerPile = new List<CardInstance>();
 
     public drawPile DrawPileComponent => _drawPile;
     public handCards HandCardsComponent => _handCards;
     public discardPile DiscardPileComponent => _discardPile;
 
-    public IReadOnlyList<CardData> handCards => _handCards.Cards;
-    public IReadOnlyList<CardData> drawPile => _drawPile.Cards;
-    public IReadOnlyList<CardData> discardPile => _discardPile.Cards;
-    public IReadOnlyList<CardData> exhaustPile => _exhaustPile;
-    public IReadOnlyList<CardData> powerPile => _powerPile;
+    public IReadOnlyList<CardInstance> handCards => _handCards.Cards;
+    public IReadOnlyList<CardInstance> drawPile => _drawPile.Cards;
+    public IReadOnlyList<CardInstance> discardPile => _discardPile.Cards;
+    public IReadOnlyList<CardInstance> exhaustPile => _exhaustPile;
+    public IReadOnlyList<CardInstance> powerPile => _powerPile;
 
     public int DrawPileCount => _drawPile.Count;
     public int HandCount => _handCards.Count;
@@ -48,7 +49,15 @@ public class DeckManager
 
     public void Initialize(IEnumerable<CardData> cards, bool shuffle)
     {
-        _drawPile.Initialize(cards);
+        IEnumerable<CardInstance> instances = cards
+            .Where(card => card != null)
+            .Select(card => new CardInstance(card.cardId));
+        Initialize(instances, shuffle);
+    }
+
+    public void Initialize(IEnumerable<CardInstance> cards, bool shuffle)
+    {
+        _drawPile.Initialize(cards.Where(card => card != null));
         _handCards.Clear();
         _discardPile.Clear();
         _exhaustPile.Clear();
@@ -57,9 +66,9 @@ public class DeckManager
             _drawPile.Shuffle();
     }
 
-    public List<CardData> DrawCards(int count)
+    public List<CardInstance> DrawCards(int count)
     {
-        var drawn = new List<CardData>();
+        var drawn = new List<CardInstance>();
         for (int i = 0; i < count; i++)
         {
             if (_drawPile.IsEmpty)
@@ -68,7 +77,7 @@ public class DeckManager
             if (_drawPile.IsEmpty)
                 break;
 
-            CardData card = _drawPile.DrawTop();
+            CardInstance card = _drawPile.DrawTop();
             _handCards.AddCard(card);
             drawn.Add(card);
         }
@@ -77,30 +86,41 @@ public class DeckManager
 
     public void AddCardToHand(CardData card)
     {
+        if (card != null)
+            AddCardToHand(new CardInstance(card.cardId));
+    }
+
+    public void AddCardToHand(CardInstance card)
+    {
         _handCards.AddCard(card);
     }
 
-    public bool RemoveFromHand(CardData card)
+    public bool RemoveFromHand(CardInstance card)
     {
         return _handCards.RemoveCard(card);
     }
 
-    public void PlayCard(CardData card)
+    public void PlayCard(CardInstance card)
     {
         if (!_handCards.Contains(card)) return;
         _handCards.RemoveCard(card);
         MoveResolvedCardAfterPlay(card);
     }
 
-    public void MoveResolvedCardAfterPlay(CardData card)
+    public void MoveResolvedCardAfterPlay(CardInstance card)
     {
         if (card == null) return;
 
-        if (card.HasCardType(CardType.Power))
+        CardData data = card.GetCardData();
+        if (data == null) return;
+
+        card.ClearTemporaryCostModifiers();
+
+        if (data.HasCardType(CardType.Power))
         {
             _powerPile.Add(card);
         }
-        else if (card.exhaust)
+        else if (data.exhaust)
         {
             _exhaustPile.Add(card);
         }
@@ -110,16 +130,19 @@ public class DeckManager
         }
     }
 
-    public void DiscardCard(CardData card)
+    public void DiscardCard(CardInstance card)
     {
         if (!_handCards.Contains(card)) return;
         _handCards.RemoveCard(card);
+        card.ClearTemporaryCostModifiers();
         _discardPile.AddCard(card);
     }
 
     public void DiscardAllHand()
     {
         var all = _handCards.GetAll();
+        foreach (CardInstance card in all)
+            card.ClearTemporaryCostModifiers();
         _discardPile.AddRange(all);
         _handCards.Clear();
     }
@@ -132,7 +155,7 @@ public class DeckManager
         _drawPile.Shuffle();
     }
 
-    public IEnumerable<CardData> GetAllCombatCards()
+    public IEnumerable<CardInstance> GetAllCombatCards()
     {
         return _drawPile.Cards
             .Concat(_handCards.Cards)

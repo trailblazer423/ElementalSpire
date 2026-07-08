@@ -17,8 +17,8 @@ public class CardEffectResolver
     private readonly PlayerState playerState;
     private readonly ElementReactionResolver elementReactionResolver;
 
-    private bool corrosiveWaveActive = false;
-    private bool toxicCloudActive = false;
+    private int corrosiveWavePoisonPerDraw = 0;
+    private int toxicCloudPoisonAmount = 0;
     private bool hellionResolving = false;
 
     public CardEffectResolver(
@@ -60,25 +60,35 @@ public class CardEffectResolver
     public void ResolveEffect(CardData card, ElementType chosenElement = ElementType.None)
     {
         if (card == null) return;
+        ResolveEffect(new CardInstance(card.cardId), chosenElement);
+    }
 
-        battleManager?.LogBattleEvent($"结算 {card.cardName}。");
+    public void ResolveEffect(CardInstance cardInstance, ElementType chosenElement = ElementType.None)
+    {
+        if (cardInstance == null) return;
+
+        CardData card = cardInstance.GetCardData();
+        if (card == null) return;
+
+        bool upgraded = cardInstance.isUpgraded;
+        battleManager?.LogBattleEvent($"结算 {card.cardName}{(upgraded ? "+" : string.Empty)}。");
 
         switch (card.cardId)
         {
             case "starter_strike":
-                DealAttackDamage(6, 1, ElementType.None, card.cardName);
+                DealAttackDamage(upgraded ? 9 : 6, 1, ElementType.None, card.cardName);
                 break;
             case "starter_defend":
-                GainBlock(5);
+                GainBlock(upgraded ? 8 : 5);
                 break;
 
             case "fire_sacrifice":
                 LoseHp(6);
                 playerEnergy?.AddEnergy(2);
-                DrawCards(3, card.cardName);
+                DrawCards(upgraded ? 5 : 3, card.cardName);
                 break;
             case "fire_demon_form":
-                playerState?.AddDemonFormPowerPerTurn(2);
+                playerState?.AddDemonFormPowerPerTurn(upgraded ? 3 : 2);
                 battleManager?.LogBattleEvent("获得能力：恶魔形态。");
                 break;
             case "fire_hellion":
@@ -86,20 +96,20 @@ public class CardEffectResolver
                 battleManager?.LogBattleEvent("获得能力：地狱狂徒。");
                 break;
             case "fire_hilt_strike":
-                DealAttackDamage(9, 1, ElementType.Fire, card.cardName);
-                DrawCards(1, card.cardName);
+                DealAttackDamage(upgraded ? 10 : 9, 1, ElementType.Fire, card.cardName);
+                DrawCards(upgraded ? 2 : 1, card.cardName);
                 break;
             case "fire_not_yet":
-                HealPlayer(10);
+                HealPlayer(upgraded ? 13 : 10);
                 break;
             case "fire_perfect_strike":
-                PerfectStrike(card);
+                PerfectStrike(cardInstance);
                 break;
             case "fire_double_strike":
-                DealAttackDamage(5, 2, ElementType.Fire, card.cardName);
+                DealAttackDamage(upgraded ? 7 : 5, 2, ElementType.Fire, card.cardName);
                 break;
             case "fire_bloodletting":
-                LoseHp(3);
+                LoseHp(upgraded ? 2 : 3);
                 AddPower(1);
                 break;
             case "fire_barricade":
@@ -108,83 +118,85 @@ public class CardEffectResolver
                 break;
             case "fire_blood_wall":
                 LoseHp(4);
-                GainBlock(12);
+                GainBlock(upgraded ? 16 : 12);
                 break;
 
             case "poison_blade":
             {
-                ElementReactionResult reaction = DealAttackDamage(5, 1, ElementType.Poison, card.cardName);
-                ApplyPoisonStacks(4 * reaction.PoisonMultiplier, card.cardName, false);
+                ElementReactionResult reaction = DealAttackDamage(upgraded ? 7 : 5, 1, ElementType.Poison, card.cardName);
+                ApplyPoisonStacks((upgraded ? 5 : 4) * reaction.PoisonMultiplier, card.cardName, false);
                 break;
             }
             case "poison_sneak_needle":
             {
-                ElementReactionResult reaction = DealAttackDamage(6, 1, ElementType.Poison, card.cardName);
-                ApplyPoisonStacks(3 * reaction.PoisonMultiplier, card.cardName, false);
+                ElementReactionResult reaction = DealAttackDamage(upgraded ? 8 : 6, 1, ElementType.Poison, card.cardName);
+                ApplyPoisonStacks((upgraded ? 4 : 3) * reaction.PoisonMultiplier, card.cardName, false);
                 break;
             }
             case "poison_prepare":
-                DrawCards(1, card.cardName);
+                DrawCards(upgraded ? 2 : 1, card.cardName);
                 DiscardCards(1);
                 break;
             case "poison_roll":
-                GainBlock(7);
+                GainBlock(upgraded ? 9 : 7);
                 DrawCards(1, card.cardName);
                 DiscardCards(1);
                 break;
             case "poison_fog_guard":
-                GainBlock((battleManager?.EnemyState?.PoisonStacks ?? 0) > 0 ? 10 : 6);
+                GainBlock((battleManager?.EnemyState?.PoisonStacks ?? 0) > 0 ? (upgraded ? 13 : 10) : (upgraded ? 8 : 6));
                 break;
             case "poison_acrobatics":
-                DrawCards(3, card.cardName);
+                DrawCards(upgraded ? 4 : 3, card.cardName);
                 DiscardCards(1);
                 break;
             case "poison_smoke_bomb":
-                ApplyPoisonStacks(3, card.cardName);
-                GainBlock(6);
+                ApplyPoisonStacks(upgraded ? 4 : 3, card.cardName);
+                GainBlock(upgraded ? 8 : 6);
                 break;
             case "poison_bouncing_flask":
-                ApplyPoisonStacks(3, card.cardName + " 1/3");
-                ApplyPoisonStacks(3, card.cardName + " 2/3");
-                ApplyPoisonStacks(3, card.cardName + " 3/3");
+            {
+                int repeatCount = upgraded ? 4 : 3;
+                for (int i = 1; i <= repeatCount; i++)
+                    ApplyPoisonStacks(3, $"{card.cardName} {i}/{repeatCount}");
                 break;
+            }
             case "poison_corrosive_wave":
-                ActivateCorrosiveWave();
+                ActivateCorrosiveWave(upgraded ? 3 : 2);
                 break;
             case "poison_toxic_cloud":
-                ActivateToxicCloud();
+                ActivateToxicCloud(upgraded ? 4 : 3);
                 break;
 
             case "water_blade":
-                DealAttackDamage(7, 1, ElementType.Water, card.cardName);
+                DealAttackDamage(upgraded ? 10 : 7, 1, ElementType.Water, card.cardName);
                 break;
             case "water_surge":
-                DealAttackDamage(9, 1, ElementType.Water, card.cardName);
+                DealAttackDamage(upgraded ? 11 : 9, 1, ElementType.Water, card.cardName);
                 DrawCards(1, card.cardName);
                 break;
             case "water_curtain":
-                GainBlock(7);
+                GainBlock(upgraded ? 9 : 7);
                 AddWater(1, card.cardName);
                 break;
             case "water_ebb":
-                GainBlock(8);
+                GainBlock(upgraded ? 11 : 8);
                 break;
             case "water_gather":
                 AddWater(2, card.cardName);
-                DrawCards(1, card.cardName);
+                DrawCards(upgraded ? 2 : 1, card.cardName);
                 break;
             case "water_wave_guard":
-                GainBlock(playerState != null && playerState.ReactionThisTurn ? 16 : 12);
+                GainBlock(playerState != null && playerState.ReactionThisTurn ? (upgraded ? 20 : 16) : (upgraded ? 15 : 12));
                 break;
             case "water_spring":
-                DrawCards(3, card.cardName);
+                DrawCards(upgraded ? 4 : 3, card.cardName);
                 break;
             case "water_lake_echo":
-                playerState?.AddLakeEchoBlockPerWater(2);
+                playerState?.AddLakeEchoBlockPerWater(upgraded ? 3 : 2);
                 battleManager?.LogBattleEvent("获得能力：星湖回响。");
                 break;
             case "water_deep_burst":
-                DealAttackDamage(24, 1, ElementType.Water, card.cardName);
+                DealAttackDamage(upgraded ? 32 : 24, 1, ElementType.Water, card.cardName);
                 break;
             case "water_vein_resonance":
                 playerState?.SetWaterResonanceActive();
@@ -195,13 +207,13 @@ public class CardEffectResolver
                 AddGeneratedCard(RandomCard(data => CardDeckLibrary.IsMainElement(data.elementType)), card.cardName);
                 break;
             case "color_blank_strike":
-                DealAttackDamage(8, 1, NormalizeChosenElement(chosenElement), card.cardName);
+                DealAttackDamage(upgraded ? 11 : 8, 1, NormalizeChosenElement(chosenElement), card.cardName);
                 break;
             case "color_emergency_shield":
-                GainBlock(8);
+                GainBlock(upgraded ? 11 : 8);
                 break;
             case "color_tactical_sort":
-                DrawCards(1, card.cardName);
+                DrawCards(upgraded ? 2 : 1, card.cardName);
                 DiscardCards(1);
                 break;
             case "color_sample":
@@ -209,26 +221,26 @@ public class CardEffectResolver
                 break;
             case "color_harmony":
                 playerEnergy?.AddEnergy(1);
-                AddGeneratedCard(RandomCard(data => CardDeckLibrary.IsMainElement(data.elementType)), card.cardName);
+                AddGeneratedCard(RandomCard(data => CardDeckLibrary.IsMainElement(data.elementType)), card.cardName, upgraded ? -2 : -1);
                 break;
             case "color_neutral_arrow":
             {
-                ElementReactionResult reaction = DealAttackDamage(6, 1, NormalizeChosenElement(chosenElement), card.cardName);
+                ElementReactionResult reaction = DealAttackDamage(upgraded ? 8 : 6, 1, NormalizeChosenElement(chosenElement), card.cardName);
                 if (reaction.Triggered)
-                    DrawCards(1, card.cardName + "反应奖励");
+                    DrawCards(upgraded ? 2 : 1, card.cardName + "反应奖励");
                 break;
             }
             case "color_panacea":
-                GainBlock(6);
+                GainBlock(upgraded ? 9 : 6);
                 AddGeneratedCard(RandomCard(data => CardDeckLibrary.IsMainElement(data.elementType) && data.HasCardType(CardType.Skill)), card.cardName);
                 break;
             case "color_tri_core":
-                playerState?.AddTriCoreLimit(1);
+                playerState?.AddTriCoreLimit(upgraded ? 2 : 1);
                 battleManager?.LogBattleEvent("获得能力：三相核心。");
                 break;
             case "color_rift":
-                AddGeneratedCard(RandomCard(data => CardDeckLibrary.IsMainElement(data.elementType)), card.cardName);
-                AddGeneratedCard(RandomCard(data => CardDeckLibrary.IsMainElement(data.elementType)), card.cardName);
+                AddGeneratedCard(RandomCard(data => CardDeckLibrary.IsMainElement(data.elementType)), card.cardName, -1);
+                AddGeneratedCard(RandomCard(data => CardDeckLibrary.IsMainElement(data.elementType)), card.cardName, -1);
                 break;
 
             default:
@@ -276,20 +288,20 @@ public class CardEffectResolver
 
     private void DrawCards(int count, string source)
     {
-        List<CardData> drawn = deckManager?.DrawCards(count);
+        List<CardInstance> drawn = deckManager?.DrawCards(count);
         if (drawn == null || drawn.Count == 0)
             return;
 
-        if (corrosiveWaveActive)
+        if (corrosiveWavePoisonPerDraw > 0)
         {
-            ApplyPoisonStacks(drawn.Count * 2, "腐蚀波", true);
+            ApplyPoisonStacks(drawn.Count * corrosiveWavePoisonPerDraw, "腐蚀波", true);
         }
 
         ResolveHellionDraws(drawn);
         battleManager?.LogBattleEvent($"{source}：抽 {drawn.Count} 张牌。");
     }
 
-    private void ResolveHellionDraws(List<CardData> drawn)
+    private void ResolveHellionDraws(List<CardInstance> drawn)
     {
         if (hellionResolving || playerState == null || !playerState.HellionActive)
             return;
@@ -297,15 +309,16 @@ public class CardEffectResolver
         hellionResolving = true;
         try
         {
-            foreach (CardData card in drawn.ToList())
+            foreach (CardInstance cardInstance in drawn.ToList())
             {
-                if (card == null || !card.cardName.Contains("打击") || !deckManager.handCards.Contains(card))
+                CardData card = cardInstance?.GetCardData();
+                if (card == null || !card.cardName.Contains("打击") || !deckManager.handCards.Contains(cardInstance))
                     continue;
 
-                battleManager?.LogBattleEvent($"地狱狂徒：抽到 {card.cardName}，自动免费打出。");
-                deckManager.RemoveFromHand(card);
-                ResolveEffect(card);
-                deckManager.MoveResolvedCardAfterPlay(card);
+                battleManager?.LogBattleEvent($"地狱狂徒：抽到 {card.cardName}{(cardInstance.isUpgraded ? "+" : string.Empty)}，自动免费打出。");
+                deckManager.RemoveFromHand(cardInstance);
+                ResolveEffect(cardInstance);
+                deckManager.MoveResolvedCardAfterPlay(cardInstance);
             }
         }
         finally
@@ -318,16 +331,20 @@ public class CardEffectResolver
     {
         for (int i = 0; i < count && deckManager.handCards.Count > 0; i++)
         {
-            CardData card = deckManager.handCards[deckManager.handCards.Count - 1];
+            CardInstance cardInstance = deckManager.handCards[deckManager.handCards.Count - 1];
+            CardData card = cardInstance.GetCardData();
+            if (card == null)
+                continue;
+
             if (card.HasCardType(CardType.Trick))
             {
-                battleManager?.LogBattleEvent($"奇巧触发：{card.cardName} 被主动丢弃，免费打出。");
-                ResolveEffect(card);
-                deckManager.PlayCard(card);
+                battleManager?.LogBattleEvent($"奇巧触发：{card.cardName}{(cardInstance.isUpgraded ? "+" : string.Empty)} 被主动丢弃，免费打出。");
+                ResolveEffect(cardInstance);
+                deckManager.PlayCard(cardInstance);
             }
             else
             {
-                deckManager.DiscardCard(card);
+                deckManager.DiscardCard(cardInstance);
             }
         }
     }
@@ -373,43 +390,50 @@ public class CardEffectResolver
         playerHp.CurrentHP = playerHp.CurrentHP + amount;
     }
 
-    private void ActivateCorrosiveWave()
+    private void ActivateCorrosiveWave(int poisonPerDraw)
     {
-        corrosiveWaveActive = true;
-        battleManager?.LogBattleEvent("腐蚀波激活：本回合内每抽一张牌给予敌人2层中毒。");
+        corrosiveWavePoisonPerDraw = poisonPerDraw;
+        battleManager?.LogBattleEvent($"腐蚀波激活：本回合内每抽一张牌给予敌人{poisonPerDraw}层中毒。");
     }
 
     private void ClearCorrosiveWave()
     {
-        if (!corrosiveWaveActive) return;
-        corrosiveWaveActive = false;
+        if (corrosiveWavePoisonPerDraw <= 0) return;
+        corrosiveWavePoisonPerDraw = 0;
         battleManager?.LogBattleEvent("腐蚀波效果已清除。");
     }
 
-    private void ActivateToxicCloud()
+    private void ActivateToxicCloud(int poisonAmount)
     {
-        toxicCloudActive = true;
-        battleManager?.LogBattleEvent("毒云弥漫激活：敌人行动前给予3层中毒。");
+        toxicCloudPoisonAmount = poisonAmount;
+        battleManager?.LogBattleEvent($"毒云弥漫激活：敌人行动前给予{poisonAmount}层中毒。");
     }
 
     private void OnToxicCloudTrigger()
     {
-        if (!toxicCloudActive) return;
-        ApplyPoisonStacks(3, "毒云弥漫", true);
+        if (toxicCloudPoisonAmount <= 0) return;
+        ApplyPoisonStacks(toxicCloudPoisonAmount, "毒云弥漫", true);
     }
 
-    private void PerfectStrike(CardData playedCard)
+    private void PerfectStrike(CardInstance playedCard)
     {
+        CardData playedData = playedCard?.GetCardData();
+        bool upgraded = playedCard != null && playedCard.isUpgraded;
         int powerBonus = playerState != null ? playerState.power : 0;
-        int strikeCount = deckManager.GetAllCombatCards().Count(card => card.cardName.Contains("打击"));
-        if (playedCard != null && !deckManager.GetAllCombatCards().Contains(playedCard) && playedCard.cardName.Contains("打击"))
+        int strikeCount = deckManager.GetAllCombatCards().Count(cardInstance =>
+        {
+            CardData data = cardInstance?.GetCardData();
+            return data != null && data.cardName.Contains("打击");
+        });
+
+        if (playedData != null && !deckManager.GetAllCombatCards().Contains(playedCard) && playedData.cardName.Contains("打击"))
             strikeCount++;
 
-        int damage = 6 + powerBonus + strikeCount * 2;
-        DealAttackDamage(damage - powerBonus, 1, ElementType.Fire, playedCard?.cardName ?? "完美打击");
+        int damage = 6 + powerBonus + strikeCount * (upgraded ? 3 : 2);
+        DealAttackDamage(damage - powerBonus, 1, ElementType.Fire, playedData?.cardName ?? "完美打击");
     }
 
-    private void AddGeneratedCard(CardData data, string source)
+    private void AddGeneratedCard(CardData data, string source, int energyCostModifier = 0)
     {
         if (data == null)
         {
@@ -417,8 +441,15 @@ public class CardEffectResolver
             return;
         }
 
-        deckManager.AddCardToHand(data);
-        battleManager?.LogBattleEvent($"{source}：{data.cardName} 加入手牌。");
+        CardInstance generatedCard = new CardInstance(data.cardId)
+        {
+            energyCostModifier = energyCostModifier
+        };
+        deckManager.AddCardToHand(generatedCard);
+
+        string costText = energyCostModifier != 0 ? $"，本回合费用{energyCostModifier}" : string.Empty;
+        battleManager?.LogBattleEvent($"{source}：{data.cardName} 加入手牌{costText}。");
+        battleManager?.NotifyHandChanged();
     }
 
     private CardData RandomCard(Func<CardData, bool> predicate)
@@ -443,4 +474,3 @@ public class CardEffectResolver
             GainBlock(6);
     }
 }
-

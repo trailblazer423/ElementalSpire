@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using System.Collections;
 using System.Collections.Generic;
 using ElementalSpire.Cards;
@@ -46,6 +47,8 @@ public class BattleUI : MonoBehaviour
     private List<CardView> _cardViews = new List<CardView>();
     private readonly List<string> _battleLogs = new List<string>();
     private const int MaxBattleLogLines = 9;
+
+    private string _lastBattleResult = "";
 
     private static readonly string[] PhaseNames = new string[]
     {
@@ -319,7 +322,7 @@ public class BattleUI : MonoBehaviour
 
     private GameObject CreateResultPanel(Font font)
     {
-        GameObject panel = new GameObject("ResultPanel", typeof(Image));
+        GameObject panel = new GameObject("ResultPanel", typeof(Image), typeof(Button));
         panel.transform.SetParent(_canvas.transform, false);
         var rect = panel.GetComponent<RectTransform>();
         rect.anchorMin = new Vector2(0.5f, 0.5f);
@@ -330,6 +333,9 @@ public class BattleUI : MonoBehaviour
 
         var image = panel.GetComponent<Image>();
         image.color = new Color(0, 0, 0, 0.8f);
+
+        var btn = panel.GetComponent<Button>();
+        btn.onClick.AddListener(OnResultClicked);
 
         GameObject textObj = new GameObject("ResultText", typeof(Text));
         textObj.transform.SetParent(panel.transform, false);
@@ -409,19 +415,35 @@ public class BattleUI : MonoBehaviour
     }
     private void OnBattleOver(string result)
     {
+        _lastBattleResult = result;
         _resultPanel.SetActive(true);
+
         if (result == "win")
         {
-            _resultText.text = "胜利！";
+            _resultText.text = "胜利！\n点击继续";
             _resultText.color = Color.yellow;
         }
         else
         {
-            _resultText.text = "战败...";
+            _resultText.text = "战败...\n点击返回主菜单";
             _resultText.color = Color.red;
         }
         if (_endTurnButton != null)
             _endTurnButton.gameObject.SetActive(false);
+    }
+
+    private void OnResultClicked()
+    {
+        Debug.Log($"[BattleUI] 点击结果面板，_lastBattleResult={_lastBattleResult}, GameManager.isBattleWin={GameManager.Instance?.isBattleWin}, currentFloor={GameManager.Instance?.currentFloor}");
+
+        if (_lastBattleResult == "win")
+        {
+            SceneManager.LoadScene("MapScene");
+        }
+        else
+        {
+            SceneManager.LoadScene("MainMenuScene");
+        }
     }
 
     private IEnumerator DelayedInitialUpdate()

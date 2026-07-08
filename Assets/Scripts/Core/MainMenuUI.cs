@@ -4,16 +4,16 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// ���˵�UI�����߼�
+/// 主菜单UI管理逻辑
 /// </summary>
 public class MainMenuUI : MonoBehaviour
 {
     /// <summary>
-    /// ��ʼ��Ϸ��ť����ص�����ת����ͼ����
+    /// 开始游戏按钮，点击后跳转到地图场景
     /// </summary>
     public void OnStartGameClick()
     {
-        // ÿ�ο�ʼ���¾���Ϸʱ���ó�ʼ����
+        // 每次开始新游戏时重置初始数据
         if (GameManager.Instance != null)
         {
             GameManager.Instance.currentFloor = 1;

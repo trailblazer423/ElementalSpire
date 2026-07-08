@@ -34,9 +34,9 @@ public class MapManager : MonoBehaviour
         SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
-    // ========== ��ť������������� OnXxxClicked �淶��==========
+    // ========== 按钮事件统一按 OnXxxClicked 规范命名 ==========
     /// <summary>
-    /// �������˵���ť���
+    /// 返回主菜单按钮处理
     /// </summary>
     public void OnBackToMainMenuClicked()
     {
@@ -44,95 +44,95 @@ public class MapManager : MonoBehaviour
     }
 
     /// <summary>
-    /// ��Ϸ�����������̣�ѡԪ�� �� ��10�Ż����� �� 3����ѡ �� ������1��
+    /// 游戏开局初始化流程：选元素 → 发10张基础牌 → 3次开局选牌 → 解锁节点1
     /// </summary>
     private IEnumerator GameStartFlow()
     {
-        Debug.Log("[MapManager] ===== �������̿�ʼ =====");
+        Debug.Log("[MapManager] ===== 初始化流程开始 =====");
 
-        // 1. ֱ�Ӹ�ֵ����Ԫ�أ���ȫȥ��UI�ȴ�
+        // 1. 直接赋值双元素，完全去掉UI等待
         ElementType eleA = ElementType.Fire;
         ElementType eleB = ElementType.Poison;
         GameManager.Instance.mainElementA = eleA;
         GameManager.Instance.mainElementB = eleB;
-        Debug.Log($"[MapManager] ˫Ԫ�������ã�{eleA} + {eleB}");
+        Debug.Log($"[MapManager] 双元素已设置：{eleA} + {eleB}");
 
-        // 2. ����10�ų�ʼ��ɫ��
+        // 2. 发放10张初始基础牌
         var starterCards = CardDeckLibrary.GetStarterDeck();
         foreach (var card in starterCards)
         {
             GameManager.Instance.AddCardToBag(card.cardId);
         }
-        Debug.Log($"[MapManager] ��ʼ�Ʒ�����ɣ���ǰ�ƿ�������{GameManager.Instance.playerCardBag.Count}");
+        Debug.Log($"[MapManager] 初始牌发放完成，当前牌库数量：{GameManager.Instance.playerCardBag.Count}");
 
-        // 3. ִ��3�ο���ѡ��
-        Debug.Log("[MapManager] ��ʼ��1�ο���ѡ�ƣ�ƫԪ��A��");
+        // 3. 执行3次开局选牌
+        Debug.Log("[MapManager] 开始第1次开局选牌（偏元素A）");
         yield return StartCoroutine(DoDraftSelect(
             CardDeckLibrary.GetInitialDraftPool(eleA, eleA),
             DraftPhase.Start));
 
-        Debug.Log("[MapManager] ��ʼ��2�ο���ѡ�ƣ�ƫԪ��B��");
+        Debug.Log("[MapManager] 开始第2次开局选牌（偏元素B）");
         yield return StartCoroutine(DoDraftSelect(
             CardDeckLibrary.GetInitialDraftPool(eleB, eleB),
             DraftPhase.Start));
 
-        Debug.Log("[MapManager] ��ʼ��3�ο���ѡ�ƣ�˫Ԫ�ػ�ϣ�");
+        Debug.Log("[MapManager] 开始第3次开局选牌（双元素混合）");
         yield return StartCoroutine(DoDraftSelect(
             CardDeckLibrary.GetInitialDraftPool(eleA, eleB),
             DraftPhase.Start));
 
-        Debug.Log("[MapManager] 3��ѡ��ȫ�����");
+        Debug.Log("[MapManager] 3次选牌全部完成");
 
-        // 4. ������1���ڵ�
+        // 4. 解锁第1个节点
         UnlockNextNodes(0);
-        Debug.Log("[MapManager] ��ִ�н����ڵ�1");
+        Debug.Log("[MapManager] 将执行进入节点1");
 
-        // 5. ��ǳ�ʼ����ɣ�ˢ�����нڵ���ͼ
+        // 5. 标记初始化完成，刷新所有节点视图
         GameManager.Instance.gameInitialized = true;
         RefreshAllNodes();
 
-        Debug.Log($"[MapManager] ===== �������̽��� ===== �����ƿ�����{GameManager.Instance.playerCardBag.Count}");
+        Debug.Log($"[MapManager] ===== 初始化流程结束 ===== 玩家牌库数量：{GameManager.Instance.playerCardBag.Count}");
     }
 
     /// <summary>
-    /// ִ��һ����ѡһ������ѡ��������
+    /// 执行一次选牌（开局选牌/战斗奖励）
     /// </summary>
     private IEnumerator DoDraftSelect(IEnumerable<CardData> fullPool, DraftPhase phase, bool canSkip = true)
     {
         List<CardData> options = GetRandomCardsByRarity(
             fullPool.ToList(), 3, GameManager.Instance.currentFloor, phase);
 
-        // ��ӡ��ѡ�ƣ���������֤�Ƴ��Ƿ���ȷ
+        // 打印候选牌，方便调试验证池牌是否正确
         string cardNames = options.Count > 0
-            ? string.Join("��", options.Select(c => c.cardName))
-            : "�޿�����";
-        Debug.Log($"[MapManager] ��ѡ�ƣ�{cardNames}");
+            ? string.Join("，", options.Select(c => c.cardName))
+            : "无可用牌";
+        Debug.Log($"[MapManager] 候选牌：{cardNames}");
 
-        // ����ģʽ��Ĭ��ѡ��һ�ţ����ȴ�UI
+        // 测试模式：默认选第一张，不等待UI
         CardData selectedCard = options.Count > 0 ? options[0] : null;
 
         if (selectedCard != null)
         {
             GameManager.Instance.AddCardToBag(selectedCard.cardId);
-            Debug.Log($"[MapManager] ѡ�У�{selectedCard.cardName}");
+            Debug.Log($"[MapManager] 选中：{selectedCard.cardName}");
         }
         else
         {
-            Debug.Log("[MapManager] ��������ѡ��");
+            Debug.Log("[MapManager] 没有可选牌");
         }
 
-        yield return null; // ֻ�ȴ�һ֡����������
+        yield return null; // 只等待一帧，后续可改UI
     }
 
     /// <summary>
-    /// ��ϡ�ж�Ȩ�ش��Ƴ��������ȡָ����������
+    /// 按稀有度权重从牌池中随机获取指定数量卡牌
     /// </summary>
     private List<CardData> GetRandomCardsByRarity(
         List<CardData> pool, int count, int floor, DraftPhase phase)
     {
         if (pool.Count <= count) return new List<CardData>(pool);
 
-        // ���׶�����ϡ�ж�Ȩ�أ���ȫ��Ӧ�����
+        // 按阶段设置稀有度权重，后续可调整参数
         (int common, int rare, int precious) = phase switch
         {
             DraftPhase.Start => (80, 20, 0),
@@ -149,7 +149,7 @@ public class MapManager : MonoBehaviour
         {
             if (remaining.Count == 0) break;
 
-            // �����������ϡ�ж�
+            // 通过随机数决定稀有度
             int total = common + rare + precious;
             int roll = Random.Range(0, total);
             string targetRarity;
@@ -161,12 +161,12 @@ public class MapManager : MonoBehaviour
             else
                 targetRarity = CardDeckLibrary.Precious;
 
-            // ɸѡ��Ӧϡ�жȵ��ƣ�û�оʹ�ȫ���ﶵ��
+            // 筛选对应稀有度的牌，没有就从全池兜底
             var rarityPool = remaining.Where(c => c.rarity == targetRarity).ToList();
             if (rarityPool.Count == 0)
                 rarityPool = remaining;
 
-            // �����һ�ţ������ظ�
+            // 随机选一张，保证不重复
             CardData picked = rarityPool[Random.Range(0, rarityPool.Count)];
             result.Add(picked);
             remaining.Remove(picked);
@@ -182,29 +182,29 @@ public class MapManager : MonoBehaviour
         EnsureRewardManager();
         EnsureGameManager();
 
-        // ��������ӡ״̬��ȷ�Ϸ����Ƿ�ִ��
-        Debug.Log($"[MapManager] ��ͼ������ɣ�gameInitialized={GameManager.Instance.gameInitialized}");
+        // 先打印状态，确认流程是否执行
+        Debug.Log($"[MapManager] 地图加载完成：gameInitialized={GameManager.Instance.gameInitialized}");
 
         if (!GameManager.Instance.gameInitialized)
         {
-            Debug.Log("[MapManager] ���뿪�ֳ�ʼ������");
+            Debug.Log("[MapManager] 进入开局初始化流程");
             StartCoroutine(GameStartFlow());
-            return; // ��ʼ�����ǰ��ִ�к����߼�
+            return; // 初始化完成前不执行后续逻辑
         }
 
-        Debug.Log($"[MapManager] ��ͼ���أ�isBattleWin={GameManager.Instance?.isBattleWin}, currentFloor={GameManager.Instance?.currentFloor}, AllMapNodes����={(AllMapNodes != null ? AllMapNodes.Length : 0)}");
+        Debug.Log($"[MapManager] 地图加载：isBattleWin={GameManager.Instance?.isBattleWin}, currentFloor={GameManager.Instance?.currentFloor}, AllMapNodes数量={(AllMapNodes != null ? AllMapNodes.Length : 0)}");
 
         if (GameManager.Instance != null && GameManager.Instance.isBattleWin)
         {
             int winNodeId = GameManager.Instance.currentNodeId;
             bool isLastNode = GameManager.Instance.IsLastNodeOfFloor();
-            Debug.Log($"[MapManager] ����ʤ����winNodeId={winNodeId}, isLastNode={isLastNode}");
+            Debug.Log($"[MapManager] 战斗胜利：winNodeId={winNodeId}, isLastNode={isLastNode}");
 
             foreach (var node in AllMapNodes)
             {
                 if (node == null)
                 {
-                    Debug.LogWarning("[MapManager] AllMapNodes �д��ڿ����ã����� Inspector ����");
+                    Debug.LogWarning("[MapManager] AllMapNodes 中存在空引用，请检查 Inspector 配置");
                     continue;
                 }
 
@@ -221,18 +221,18 @@ public class MapManager : MonoBehaviour
 
             if (isLastNode)
             {
-                // �����ƽ�����һ��
+                // 准备推进到下一层
                 bool hasNextFloor = GameManager.Instance.AdvanceToNextFloor();
                 if (!hasNextFloor)
                 {
-                    // ��3��ͨ�أ��ص����˵�
-                    Debug.Log("[MapManager] ȫ��3��ͨ�أ���Ϸʤ����");
+                    // 第3关通关，回到主菜单
+                    Debug.Log("[MapManager] 全部3关通关，游戏胜利！");
                     SceneManager.LoadScene("MainMenuScene");
                     return;
                 }
 
-                // ����һ�أ��������нڵ㣨����ͬһ��10���ڵ㣩
-                Debug.Log($"[MapManager] ����� {GameManager.Instance.currentFloor} ��");
+                // 进入下一层，重置所有节点（同一层10个节点）
+                Debug.Log($"[MapManager] 进入第 {GameManager.Instance.currentFloor} 层");
                 ResetNodesForNewFloor();
                 RefreshAllNodes();
                 return;
@@ -254,7 +254,7 @@ public class MapManager : MonoBehaviour
     }
 
     /// <summary>
-    /// �������нڵ㣨����ͬһ��10���ڵ㣩��������СNodeId�Ľڵ㣨�ڵ�1����
+    /// 重置所有节点（同一层10个节点），并解锁最小NodeId的节点（节点1）
     /// </summary>
     private void ResetNodesForNewFloor()
     {
@@ -265,7 +265,7 @@ public class MapManager : MonoBehaviour
         {
             if (node == null)
             {
-                Debug.LogWarning("[MapManager] ResetNodesForNewFloor: ����������");
+                Debug.LogWarning("[MapManager] ResetNodesForNewFloor: 遇到空节点");
                 continue;
             }
 
@@ -277,21 +277,21 @@ public class MapManager : MonoBehaviour
                 minNodeId = node.NodeId;
         }
 
-        Debug.Log($"[MapManager] ������ {resetCount} ���ڵ㣬��С NodeId={minNodeId}");
+        Debug.Log($"[MapManager] 重置了 {resetCount} 个节点，最小 NodeId={minNodeId}");
 
         if (minNodeId == int.MaxValue)
         {
-            Debug.LogError("[MapManager] û���ҵ��κ���Ч�ڵ㣡���� AllMapNodes ����");
+            Debug.LogError("[MapManager] 没有找到任何有效节点！请检查 AllMapNodes 配置");
             return;
         }
 
-        // ������СNodeId�Ľڵ㣨���ڵ�1��
+        // 解锁最小NodeId的节点（即节点1）
         foreach (var node in AllMapNodes)
         {
             if (node != null && node.NodeId == minNodeId)
             {
                 node.IsUnlocked = true;
-                Debug.Log($"[MapManager] �����ڵ� NodeId={node.NodeId}");
+                Debug.Log($"[MapManager] 已解锁节点 NodeId={node.NodeId}");
                 break;
             }
         }
@@ -333,7 +333,7 @@ public class MapManager : MonoBehaviour
     }
 
     /// <summary>
-    /// ���е�ͼ�ڵ�����ͳһ��ڣ�ռλ�������������貹ȫ�߼���
+    /// 所有地图节点点击统一入口，占位方法，后续需补充完整逻辑
     /// </summary>
     public void OnNodeClicked(int nodeId, string nodeType)
     {

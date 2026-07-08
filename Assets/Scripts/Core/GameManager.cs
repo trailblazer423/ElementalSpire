@@ -44,19 +44,19 @@ public class GameManager : MonoBehaviour
 
 
     
-    /// <summary>锟斤拷前位锟节第硷拷锟截ｏ拷锟斤拷1锟斤拷始</summary>
+    /// <summary>当前所处的关卡层数，从1开始</summary>
     public int currentFloor = 1;
-    /// <summary>每锟截癸拷锟叫讹拷锟劫革拷锟节点（锟斤拷锟节碉拷 ID 1~10 为一锟截ｏ拷</summary>
+    /// <summary>每层包含的节点数量（节点 ID 1~10 为一层）</summary>
     public const int NodesPerFloor = 10;
-    /// <summary>锟斤拷戏锟杰癸拷锟斤拷锟斤拷锟斤拷锟?/summary>
+    /// <summary>游戏总关卡层数</summary>
     public const int MaxFloor = 3;
 
-    [Header("鍏冪礌涓庡叏灞€杩涘害")]
-    /// <summary>鏈眬閫変腑鐨勪富鍏冪礌A</summary>
+    [Header("元素与全局进度")]
+    /// <summary>本局选中的主元素A</summary>
     public ElementType mainElementA;
-    /// <summary>鏈眬閫変腑鐨勪富鍏冪礌B</summary>
+    /// <summary>本局选中的主元素B</summary>
     public ElementType mainElementB;
-    /// <summary>鏈眬鏄惁宸插畬鎴愬紑灞€鍒濆鍖栵紙閫夊厓绱?鍙戠墝+寮€灞€閫夌墝锛?/summary>
+    /// <summary>本局是否已完成开局初始化（选元素+发牌+开局选牌）</summary>
     public bool gameInitialized = false;
 
 
@@ -101,8 +101,8 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// ��ǰ�ڵ��Ƿ�Ϊ���ص����һ�ڣ��ڵ� ID % NodesPerFloor == 0 ʱΪtrue��
-    /// ���ع���ͬһ���ڵ㣨ID 1~10�������ÿ�ص�10�ڶ��ᴥ���ƽ���
+    /// 当前节点是否为当前层的最后一节，节点 ID % NodesPerFloor == 0 时为true
+    /// 层内包含同一层节点（ID 1~10），每关的第10节会触发推进
     /// </summary>
     public bool IsLastNodeOfFloor()
     {
@@ -110,7 +110,7 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// �ж��Ƿ����һ��
+    /// 判断是否为最后一层
     /// </summary>
     public bool IsLastFloor()
     {
@@ -118,13 +118,13 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// �ƽ�����һ�ء����� true = �ɹ��ƽ��� false = ȫ��ͨ�أ���Ϸʤ����
+    /// 推进到下一层。返回 true = 成功推进，false = 全通关，游戏胜利
     /// </summary>
     public bool AdvanceToNextFloor()
     {
         if (IsLastFloor())
         {
-            // ���3��ͨ�أ��ص� floor=1
+            // 第3关通关，回到 floor=1
             currentFloor = 1;
             isBattleWin = false;
             return false;
@@ -135,7 +135,7 @@ public class GameManager : MonoBehaviour
         return true;
     }
     /// <summary>
-    /// 灏嗕竴寮犲崱鐗屽姞鍏ョ帺瀹舵案涔呯墝搴擄紙瀛?cardId锛?
+    /// 将一张卡牌加入玩家永久牌库（存cardId）
     /// </summary>
     public void AddCardToBag(string cardId)
     {
@@ -144,45 +144,11 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 浠庣帺瀹舵案涔呯墝搴撳垹闄や竴寮犲崱鐗?
+    /// 从玩家永久牌库删除一张卡牌
     /// </summary>
     public bool RemoveCardFromBag(string cardId)
     {
         return playerCardBag.Remove(cardId);
     }
 
-    /// <summary>
-    /// ��ǰ�ڵ��Ƿ�Ϊ���ص����һ�ڣ��ڵ� ID % NodesPerFloor == 0 ʱΪtrue��
-    /// ���ع���ͬһ���ڵ㣨ID 1~10�������ÿ�ص�10�ڶ��ᴥ���ƽ���
-    /// </summary>
-    public bool IsLastNodeOfFloor()
-    {
-        return currentNodeId % NodesPerFloor == 0;
-    }
-
-    /// <summary>
-    /// �ж��Ƿ����һ��
-    /// </summary>
-    public bool IsLastFloor()
-    {
-        return currentFloor >= MaxFloor;
-    }
-
-    /// <summary>
-    /// �ƽ�����һ�ء����� true = �ɹ��ƽ��� false = ȫ��ͨ�أ���Ϸʤ����
-    /// </summary>
-    public bool AdvanceToNextFloor()
-    {
-        if (IsLastFloor())
-        {
-            // ���3��ͨ�أ��ص� floor=1
-            currentFloor = 1;
-            isBattleWin = false;
-            return false;
-        }
-
-        currentFloor++;
-        isBattleWin = false;
-        return true;
-    }
 }

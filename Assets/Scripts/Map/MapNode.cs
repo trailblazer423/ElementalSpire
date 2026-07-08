@@ -6,17 +6,17 @@ using UnityEngine.UI;
 
 public class MapNode : MonoBehaviour
 {
-    [Header("�ڵ������Ϣ")]
-    public int NodeId;          // �ڵ�Ψһ���
-    public string NodeType;     // �ڵ����ͣ�Normal/Elite/Boss/Rest/Event/Reward
-    public bool IsUnlocked;     // �Ƿ����
-    public bool IsCleared;      // �Ƿ�ͨ��
+    [Header("节点基础信息")]
+    public int NodeId;          // 节点唯一标识
+    public string NodeType;     // 节点类型：Normal/Elite/Boss/Rest/Event/Reward
+    public bool IsUnlocked;     // 是否解锁
+    public bool IsCleared;      // 是否通关
     public RewardData ClearReward;
 
-    [Header("UI�������")]
-    public Image bgImage;       // �ڵ㱳��ͼ
-    public TextMeshProUGUI nodeNameText; // �ڵ���������
-    public GameObject clearMark; // ͨ�ش򹴱��
+    [Header("UI组件引用")]
+    public Image bgImage;       // 节点背景图
+    public TextMeshProUGUI nodeNameText; // 节点名称文本
+    public GameObject clearMark; // 通关打勾标记
 
     private Button nodeBtn;
     private Image nodeImage;
@@ -28,7 +28,7 @@ public class MapNode : MonoBehaviour
         nodeBtn.onClick.AddListener(OnMapNodeClicked);
     }
 
-    // ˢ�½ڵ���ʾ״̬
+    // 刷新节点显示状态
     public void RefreshView()
     {
         nodeBtn.interactable = IsUnlocked;

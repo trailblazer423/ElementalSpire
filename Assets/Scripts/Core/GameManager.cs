@@ -150,4 +150,39 @@ public class GameManager : MonoBehaviour
     {
         return playerCardBag.Remove(cardId);
     }
+
+    /// <summary>
+    /// ��ǰ�ڵ��Ƿ�Ϊ���ص����һ�ڣ��ڵ� ID % NodesPerFloor == 0 ʱΪtrue��
+    /// ���ع���ͬһ���ڵ㣨ID 1~10�������ÿ�ص�10�ڶ��ᴥ���ƽ���
+    /// </summary>
+    public bool IsLastNodeOfFloor()
+    {
+        return currentNodeId % NodesPerFloor == 0;
+    }
+
+    /// <summary>
+    /// �ж��Ƿ����һ��
+    /// </summary>
+    public bool IsLastFloor()
+    {
+        return currentFloor >= MaxFloor;
+    }
+
+    /// <summary>
+    /// �ƽ�����һ�ء����� true = �ɹ��ƽ��� false = ȫ��ͨ�أ���Ϸʤ����
+    /// </summary>
+    public bool AdvanceToNextFloor()
+    {
+        if (IsLastFloor())
+        {
+            // ���3��ͨ�أ��ص� floor=1
+            currentFloor = 1;
+            isBattleWin = false;
+            return false;
+        }
+
+        currentFloor++;
+        isBattleWin = false;
+        return true;
+    }
 }

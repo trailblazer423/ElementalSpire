@@ -1,11 +1,12 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using System.Collections;
 using System.Collections.Generic;
 using ElementalSpire.Cards;
 
 /// <summary>
-/// 战斗UI可视化 - 自动创建所有UI元素，显示手牌和战斗信息
+/// 战斗UI可视化 - 自动创建所有UI元素，显示手牌和战斗信息。
 /// </summary>
 public class BattleUI : MonoBehaviour
 {
@@ -23,13 +24,18 @@ public class BattleUI : MonoBehaviour
     private Text _turnText;
     private Text _playerHPText;
     private Text _playerEnergyText;
+    private Text _playerWaterText;
     private Text _playerBlockText;
     private Text _playerPowerText;
     private Text _enemyHPText;
     private Text _enemyBlockText;
     private Text _enemyPoisonText;
+    private Text _enemyElementText;
     private Text _drawPileText;
     private Text _discardPileText;
+    private Text _exhaustPileText;
+    private Text _powerPileText;
+    private Text _battleLogText;
     private Button _endTurnButton;
     private GameObject _resultPanel;
     private Text _resultText;
@@ -39,6 +45,10 @@ public class BattleUI : MonoBehaviour
     private bool _uiCreated = false;
     private float _infoUpdateDelay = 0.2f;
     private List<CardView> _cardViews = new List<CardView>();
+    private readonly List<string> _battleLogs = new List<string>();
+    private const int MaxBattleLogLines = 9;
+
+    private string _lastBattleResult = "";
 
     private static readonly string[] PhaseNames = new string[]
     {
@@ -52,10 +62,6 @@ public class BattleUI : MonoBehaviour
         ">>> 护盾清空",       // ShieldClear
         ">>> 回合结束"        // TurnEnd
     };
-
-    // ==========================================
-    //  生命周期
-    // ==========================================
 
     void Awake()
     {
@@ -80,6 +86,7 @@ public class BattleUI : MonoBehaviour
             _battleManager.OnBattleOver += OnBattleOver;
             _battleManager.OnHandChanged += RefreshHand;
             _battleManager.OnBattleInfoChanged += RefreshAllInfo;
+            _battleManager.OnBattleLog += OnBattleLog;
         }
 
         if (_endTurnButton != null)
@@ -93,7 +100,7 @@ public class BattleUI : MonoBehaviour
             Debug.LogError("[BattleUI] BattleManager 或 TurnManager 未找到");
             return;
         }
-        // 首次刷新手牌
+
         RefreshHand();
         StartCoroutine(DelayedInitialUpdate());
     }
@@ -110,14 +117,11 @@ public class BattleUI : MonoBehaviour
             _battleManager.OnBattleOver -= OnBattleOver;
             _battleManager.OnHandChanged -= RefreshHand;
             _battleManager.OnBattleInfoChanged -= RefreshAllInfo;
+            _battleManager.OnBattleLog -= OnBattleLog;
         }
         if (_endTurnButton != null)
             _endTurnButton.onClick.RemoveListener(OnEndTurnClicked);
     }
-
-    // ==========================================
-    //  自动创建UI
-    // ==========================================
 
     private void CreateUI()
     {
@@ -134,43 +138,47 @@ public class BattleUI : MonoBehaviour
 
         Font font = GetFont();
 
-        _phaseText = CreateText("PhaseText", ">>> 玩家回合开始", 36, Color.white, new Vector2(0, 200), font);
-        _turnText = CreateText("TurnText", "第 1 回合", 28, Color.white, new Vector2(0, 150), font);
+        _phaseText = CreateText("PhaseText", ">>> 玩家回合开始", 36, Color.white, new Vector2(0, 210), font);
+        _turnText = CreateText("TurnText", "第 1 回合", 28, Color.white, new Vector2(0, 160), font);
 
-        _playerHPText = CreateText("PlayerHPText", "HP: 20/20", 24, Color.green, new Vector2(-400, 0), font);
-        _playerEnergyText = CreateText("PlayerEnergyText", "能量: 3/3", 24, Color.cyan, new Vector2(-400, -40), font);
-        _playerBlockText = CreateText("PlayerBlockText", "", 24, Color.yellow, new Vector2(-400, -80), font);
+        _playerHPText = CreateText("PlayerHPText", "HP: 20/20", 24, Color.green, new Vector2(-430, 20), font);
+        _playerEnergyText = CreateText("PlayerEnergyText", "能量: 3/3", 24, Color.cyan, new Vector2(-430, -20), font);
+        _playerWaterText = CreateText("PlayerWaterText", "水源: 0", 24, new Color(0.35f, 0.75f, 1f), new Vector2(-430, -60), font);
+        _playerBlockText = CreateText("PlayerBlockText", "", 24, Color.yellow, new Vector2(-430, -100), font);
+        _playerPowerText = CreateText("PlayerPowerText", "", 22, new Color(1f, 0.5f, 0f), new Vector2(-430, -140), font);
 
-        _enemyHPText = CreateText("EnemyHPText", "HP: 15/15", 24, Color.red, new Vector2(400, 0), font);
-        _enemyBlockText = CreateText("EnemyBlockText", "", 24, Color.yellow, new Vector2(400, -40), font);
+        _enemyHPText = CreateText("EnemyHPText", "HP: 15/15", 24, Color.red, new Vector2(430, 20), font);
+        _enemyBlockText = CreateText("EnemyBlockText", "", 24, Color.yellow, new Vector2(430, -20), font);
+        _enemyPoisonText = CreateText("EnemyPoisonText", "", 22, new Color(0.3f, 0.8f, 0.1f), new Vector2(430, -60), font);
+        _enemyElementText = CreateText("EnemyElementText", "", 22, new Color(0.8f, 0.9f, 1f), new Vector2(430, -100), font);
 
-        // 状态显示
-        _playerPowerText = CreateText("PlayerPowerText", "", 22, new Color(1f, 0.5f, 0f), new Vector2(-400, -120), font);
-        _enemyPoisonText = CreateText("EnemyPoisonText", "", 22, new Color(0.3f, 0.8f, 0.1f), new Vector2(400, -80), font);
+        _drawPileText = CreateText("DrawPileText", "抽牌堆: 0", 18, Color.white, new Vector2(-720, -280), font);
+        _discardPileText = CreateText("DiscardPileText", "弃牌堆: 0", 18, Color.white, new Vector2(-720, -315), font);
+        _exhaustPileText = CreateText("ExhaustPileText", "消耗区: 0", 18, Color.white, new Vector2(-720, -350), font);
+        _powerPileText = CreateText("PowerPileText", "能力区: 0", 18, Color.white, new Vector2(-720, -385), font);
+        _battleLogText = CreateText("BattleLogText", "战斗日志", 18, new Color(0.95f, 0.95f, 0.85f), new Vector2(610, -300), font);
+        _battleLogText.alignment = TextAnchor.UpperLeft;
+        _battleLogText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        _battleLogText.verticalOverflow = VerticalWrapMode.Truncate;
+        _battleLogText.rectTransform.sizeDelta = new Vector2(520, 220);
 
-        // 牌库信息（左下角）
-        _drawPileText = CreateText("DrawPileText", "抽牌堆: 0", 18, Color.white, new Vector2(-700, -300), font);
-        _discardPileText = CreateText("DiscardPileText", "弃牌堆: 0", 18, Color.white, new Vector2(-700, -340), font);
-
-        // 手牌区域（底部中央）— 用 Image 确保获得 RectTransform
         var handObj = new GameObject("HandArea", typeof(Image));
         _handArea = handObj.transform;
         _handArea.SetParent(_canvas.transform, false);
         var handImage = handObj.GetComponent<Image>();
-        handImage.color = Color.clear; // 透明
+        handImage.color = Color.clear;
         handImage.raycastTarget = false;
         var handRect = handObj.GetComponent<RectTransform>();
         handRect.anchorMin = new Vector2(0.5f, 0);
         handRect.anchorMax = new Vector2(0.5f, 0);
         handRect.pivot = new Vector2(0.5f, 0.5f);
         handRect.anchoredPosition = new Vector2(0, 120);
-        handRect.sizeDelta = new Vector2(1200, 300);
+        handRect.sizeDelta = new Vector2(1400, 300);
 
         _endTurnButton = CreateEndTurnButton(font);
         _resultPanel = CreateResultPanel(font);
         _resultText = _resultPanel.GetComponentInChildren<Text>();
 
-        // 确保 EventSystem 存在（IPointerClickHandler 需要）
         if (FindObjectOfType<UnityEngine.EventSystems.EventSystem>() == null)
         {
             new GameObject("EventSystem", typeof(UnityEngine.EventSystems.EventSystem),
@@ -181,12 +189,8 @@ public class BattleUI : MonoBehaviour
         _uiCreated = true;
     }
 
-    /// <summary>
-    /// 刷新手牌显示
-    /// </summary>
     private void RefreshHand()
     {
-        // 清除旧卡牌
         foreach (var cv in _cardViews)
         {
             if (cv != null) Destroy(cv.gameObject);
@@ -200,32 +204,26 @@ public class BattleUI : MonoBehaviour
 
         for (int i = 0; i < hand.Count; i++)
         {
-            CardData card = hand[i];
+            CardInstance card = hand[i];
             var cardView = CardView.Create(_handArea, card, _font, OnCardClicked);
             _cardViews.Add(cardView);
 
-            // 排列位置
             float totalWidth = hand.Count * 170;
             float startX = -totalWidth / 2f + 80;
             var rect = cardView.GetComponent<RectTransform>();
             rect.anchoredPosition = new Vector2(startX + i * 170, 0);
 
-            // 检查是否可以打出
             bool canPlay = isPlayerAction && CanAffordCard(card);
             cardView.SetInteractable(canPlay);
         }
 
-        // 更新牌库计数
         UpdatePileCounts();
-
-        // 同时刷新 HP / 能量 / 护盾显示
         RefreshAllInfo();
     }
 
-    private bool CanAffordCard(CardData card)
+    private bool CanAffordCard(CardInstance card)
     {
-        if (_battleManager?.PlayerEnergy == null) return false;
-        return _battleManager.PlayerEnergy.HasEnoughEnergy(card.cost);
+        return _battleManager != null && _battleManager.CanAffordCard(card);
     }
 
     private void UpdatePileCounts()
@@ -235,14 +233,15 @@ public class BattleUI : MonoBehaviour
             _drawPileText.text = $"抽牌堆: {_battleManager.DeckManager.DrawPileCount}";
         if (_discardPileText != null)
             _discardPileText.text = $"弃牌堆: {_battleManager.DeckManager.DiscardPileCount}";
+        if (_exhaustPileText != null)
+            _exhaustPileText.text = $"消耗区: {_battleManager.DeckManager.ExhaustPileCount}";
+        if (_powerPileText != null)
+            _powerPileText.text = $"能力区: {_battleManager.DeckManager.PowerPileCount}";
     }
 
-    /// <summary>
-    /// 卡牌点击回调
-    /// </summary>
-    private void OnCardClicked(CardData cardData)
+    private void OnCardClicked(CardInstance cardInstance, ElementType chosenElement)
     {
-        _battleManager?.PlayCard(cardData);
+        _battleManager?.PlayCard(cardInstance, chosenElement);
     }
 
     private Font GetFont()
@@ -283,7 +282,7 @@ public class BattleUI : MonoBehaviour
         rect.anchorMax = new Vector2(0.5f, 0.5f);
         rect.pivot = new Vector2(0.5f, 0.5f);
         rect.anchoredPosition = anchoredPos;
-        rect.sizeDelta = new Vector2(400, 50);
+        rect.sizeDelta = new Vector2(420, 50);
 
         return txt;
     }
@@ -323,7 +322,7 @@ public class BattleUI : MonoBehaviour
 
     private GameObject CreateResultPanel(Font font)
     {
-        GameObject panel = new GameObject("ResultPanel", typeof(Image));
+        GameObject panel = new GameObject("ResultPanel", typeof(Image), typeof(Button));
         panel.transform.SetParent(_canvas.transform, false);
         var rect = panel.GetComponent<RectTransform>();
         rect.anchorMin = new Vector2(0.5f, 0.5f);
@@ -334,6 +333,9 @@ public class BattleUI : MonoBehaviour
 
         var image = panel.GetComponent<Image>();
         image.color = new Color(0, 0, 0, 0.8f);
+
+        var btn = panel.GetComponent<Button>();
+        btn.onClick.AddListener(OnResultClicked);
 
         GameObject textObj = new GameObject("ResultText", typeof(Text));
         textObj.transform.SetParent(panel.transform, false);
@@ -353,10 +355,6 @@ public class BattleUI : MonoBehaviour
         return panel;
     }
 
-    // ==========================================
-    //  缓存组件
-    // ==========================================
-
     private void FindAndCacheComponents(GameObject playerObject, GameObject enemyObject)
     {
         if (playerObject != null)
@@ -372,10 +370,6 @@ public class BattleUI : MonoBehaviour
         }
     }
 
-    // ==========================================
-    //  事件响应
-    // ==========================================
-
     private void OnPhaseChanged(BattlePhase phase)
     {
         int index = (int)phase;
@@ -385,9 +379,7 @@ public class BattleUI : MonoBehaviour
         if (_endTurnButton != null)
             _endTurnButton.gameObject.SetActive(phase == BattlePhase.PlayerAction);
 
-        // 阶段变化时刷新卡牌可用状态
         RefreshHand();
-
         StartCoroutine(DelayedRefresh());
     }
 
@@ -398,26 +390,61 @@ public class BattleUI : MonoBehaviour
         UpdatePileCounts();
     }
 
+    private void OnBattleLog(string message)
+    {
+        if (string.IsNullOrEmpty(message)) return;
+
+        _battleLogs.Insert(0, message);
+        while (_battleLogs.Count > MaxBattleLogLines)
+            _battleLogs.RemoveAt(_battleLogs.Count - 1);
+
+        RefreshBattleLogText();
+    }
+
+    private void RefreshBattleLogText()
+    {
+        if (_battleLogText == null) return;
+
+        if (_battleLogs.Count == 0)
+        {
+            _battleLogText.text = "战斗日志";
+            return;
+        }
+
+        _battleLogText.text = "战斗日志\n" + string.Join("\n", _battleLogs);
+    }
     private void OnBattleOver(string result)
     {
+        _lastBattleResult = result;
         _resultPanel.SetActive(true);
+
         if (result == "win")
         {
-            _resultText.text = "胜利！";
+            _resultText.text = "胜利！\n点击继续";
             _resultText.color = Color.yellow;
         }
         else
         {
-            _resultText.text = "战败...";
+            _resultText.text = "战败...\n点击返回主菜单";
             _resultText.color = Color.red;
         }
         if (_endTurnButton != null)
             _endTurnButton.gameObject.SetActive(false);
     }
 
-    // ==========================================
-    //  刷新显示
-    // ==========================================
+    private void OnResultClicked()
+    {
+        Debug.Log($"[BattleUI] 点击结果面板，_lastBattleResult={_lastBattleResult}, GameManager.isBattleWin={GameManager.Instance?.isBattleWin}, currentFloor={GameManager.Instance?.currentFloor}");
+
+        if (_lastBattleResult == "win")
+        {
+            SceneManager.LoadScene("MapScene");
+        }
+        else
+        {
+            SceneManager.LoadScene("MainMenuScene");
+        }
+    }
 
     private IEnumerator DelayedInitialUpdate()
     {
@@ -437,6 +464,8 @@ public class BattleUI : MonoBehaviour
             _playerHPText.text = $"HP: {_playerHPComponent.CurrentHP}/{_playerHPComponent.MaxHP}";
         if (_playerEnergyComponent != null && _playerEnergyText != null)
             _playerEnergyText.text = $"能量: {_playerEnergyComponent.CurrentEnergy}/{_playerEnergyComponent.MaxEnergy}";
+        if (_playerWaterText != null)
+            _playerWaterText.text = $"水源: {_battleManager?.PlayerState?.WaterSource ?? 0}";
         if (_playerBlockComponent != null && _playerBlockText != null)
         {
             int block = _playerBlockComponent.CurrentBlock;
@@ -456,8 +485,33 @@ public class BattleUI : MonoBehaviour
         }
         if (_enemyPoisonText != null)
         {
-            int poison = _battleManager?.EnemyState?.poison ?? 0;
+            int poison = _battleManager?.EnemyState?.PoisonStacks ?? 0;
             _enemyPoisonText.text = poison > 0 ? $"中毒: {poison}" : "";
+        }
+        if (_enemyElementText != null)
+        {
+            var enemyState = _battleManager?.EnemyState;
+            string text = "";
+            if (enemyState != null)
+            {
+                var element = enemyState.ElementAttachment;
+                if (element != ElementType.None)
+                    text = $"附着: {ElementName(element)}";
+                if (enemyState.DeepPoison)
+                    text = string.IsNullOrEmpty(text) ? "深度中毒" : text + " / 深度中毒";
+            }
+            _enemyElementText.text = text;
+        }
+    }
+
+    private string ElementName(ElementType element)
+    {
+        switch (element)
+        {
+            case ElementType.Fire: return "火";
+            case ElementType.Poison: return "毒";
+            case ElementType.Water: return "水";
+            default: return "无";
         }
     }
 

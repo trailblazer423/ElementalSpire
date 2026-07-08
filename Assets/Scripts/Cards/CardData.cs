@@ -1,4 +1,4 @@
-namespace ElementalSpire.Cards
+﻿namespace ElementalSpire.Cards
 {
     public sealed class CardData
     {
@@ -11,6 +11,10 @@ namespace ElementalSpire.Cards
         public int cost;
         public int waterCost;
         public string description;
+        public string upgradeDescription;
+        public int upgradedCost;
+        public int upgradedWaterCost;
+        public bool hasUpgrade;
         public bool exhaust;
         public bool chooseElement;
         public bool starter;
@@ -40,5 +44,16 @@ namespace ElementalSpire.Cards
 
             return false;
         }
+
+        public int GetEnergyCost(bool isUpgraded)
+        {
+            return isUpgraded && upgradedCost >= 0 ? upgradedCost : cost;
+        }
+
+        public int GetWaterCost(bool isUpgraded)
+        {
+            return isUpgraded && upgradedWaterCost >= 0 ? upgradedWaterCost : waterCost;
+        }
     }
 }
+

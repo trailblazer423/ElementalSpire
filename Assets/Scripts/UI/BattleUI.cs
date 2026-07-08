@@ -31,6 +31,9 @@ public class BattleUI : MonoBehaviour
     private Text _enemyBlockText;
     private Text _enemyPoisonText;
     private Text _enemyElementText;
+    private GameObject _enemyIntentObj;
+    private Text _enemyIntentText;
+    private Image _enemyIntentBg;
     private Text _drawPileText;
     private Text _discardPileText;
     private Text _exhaustPileText;
@@ -151,6 +154,7 @@ public class BattleUI : MonoBehaviour
         _enemyBlockText = CreateText("EnemyBlockText", "", 24, Color.yellow, new Vector2(430, -20), font);
         _enemyPoisonText = CreateText("EnemyPoisonText", "", 22, new Color(0.3f, 0.8f, 0.1f), new Vector2(430, -60), font);
         _enemyElementText = CreateText("EnemyElementText", "", 22, new Color(0.8f, 0.9f, 1f), new Vector2(430, -100), font);
+        _enemyIntentObj = CreateIntentDisplay(font);
 
         _drawPileText = CreateText("DrawPileText", "抽牌堆: 0", 18, Color.white, new Vector2(-720, -280), font);
         _discardPileText = CreateText("DiscardPileText", "弃牌堆: 0", 18, Color.white, new Vector2(-720, -315), font);
@@ -502,6 +506,77 @@ public class BattleUI : MonoBehaviour
             }
             _enemyElementText.text = text;
         }
+
+        // 更新敌人意图显示（文字由 LateUpdate 每帧更新位置）
+        UpdateIntentDisplay();
+    }
+
+    private void UpdateIntentDisplay()
+    {
+        if (_enemyIntentObj == null || _enemyIntentText == null || _enemyIntentBg == null) return;
+        if (_battleManager?.EnemyObject == null) return;
+
+        var intentUI = _battleManager.EnemyObject.GetComponent<EnemyIntentUI>();
+        if (intentUI != null)
+        {
+            intentUI.GetIntentDisplay(out string intentText, out Color intentColor);
+            _enemyIntentText.text = intentText;
+            _enemyIntentText.color = intentColor;
+            _enemyIntentBg.color = new Color(intentColor.r, intentColor.g, intentColor.b, 0.25f);
+            _enemyIntentObj.SetActive(!string.IsNullOrEmpty(intentText));
+        }
+        else
+        {
+            _enemyIntentObj.SetActive(false);
+        }
+    }
+
+    void LateUpdate()
+    {
+        // 每帧将意图 UI 定位到敌人头顶
+        if (_enemyIntentObj == null || _battleManager?.EnemyObject == null) return;
+
+        Camera cam = Camera.main;
+        if (cam == null) return;
+
+        Vector3 worldPos = _battleManager.EnemyObject.transform.position;
+        worldPos.y += 2.0f; // 敌人头顶上方偏移
+        Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
+
+        RectTransform rect = _enemyIntentObj.GetComponent<RectTransform>();
+        rect.position = screenPos;
+    }
+
+    private GameObject CreateIntentDisplay(Font font)
+    {
+        GameObject container = new GameObject("EnemyIntentDisplay", typeof(Image));
+        container.transform.SetParent(_canvas.transform, false);
+
+        var rect = container.GetComponent<RectTransform>();
+        rect.sizeDelta = new Vector2(180, 50);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+
+        _enemyIntentBg = container.GetComponent<Image>();
+        _enemyIntentBg.color = new Color(0.5f, 0.5f, 0.5f, 0.25f);
+
+        GameObject textObj = new GameObject("IntentText", typeof(Text));
+        textObj.transform.SetParent(container.transform, false);
+        _enemyIntentText = textObj.GetComponent<Text>();
+        _enemyIntentText.text = "";
+        _enemyIntentText.fontSize = 28;
+        _enemyIntentText.font = font;
+        _enemyIntentText.color = Color.white;
+        _enemyIntentText.alignment = TextAnchor.MiddleCenter;
+        _enemyIntentText.horizontalOverflow = HorizontalWrapMode.Overflow;
+
+        var textRect = textObj.GetComponent<RectTransform>();
+        textRect.anchorMin = Vector2.zero;
+        textRect.anchorMax = Vector2.one;
+        textRect.offsetMin = Vector2.zero;
+        textRect.offsetMax = Vector2.zero;
+
+        container.SetActive(false);
+        return container;
     }
 
     private string ElementName(ElementType element)

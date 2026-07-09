@@ -22,19 +22,31 @@ public class BattleUI : MonoBehaviour
     private Canvas _canvas;
     private Text _phaseText;
     private Text _turnText;
+    private Text _playerNameText;
     private Text _playerHPText;
     private Text _playerEnergyText;
     private Text _playerWaterText;
     private Text _playerBlockText;
     private Text _playerPowerText;
+    private Text _enemyNameText;
     private Text _enemyHPText;
     private Text _enemyBlockText;
     private Text _enemyPoisonText;
     private Text _enemyElementText;
-    private Text _enemyNameText;
     private GameObject _enemyIntentObj;
     private Text _enemyIntentText;
     private Image _enemyIntentBg;
+    private Image _enemyIntentOutline;
+    private Image _enemyIntentArrow;
+
+    // HP 血条
+    private RectTransform _playerHPBarFill;
+    private RectTransform _playerHPBarBg;
+    private RectTransform _enemyHPBarFill;
+    private RectTransform _enemyHPBarBg;
+    private float _displayedPlayerHP = -1;
+    private float _displayedEnemyHP = -1;
+
     private Text _drawPileText;
     private Text _discardPileText;
     private Text _exhaustPileText;
@@ -142,31 +154,81 @@ public class BattleUI : MonoBehaviour
 
         Font font = GetFont();
 
-        _phaseText = CreateText("PhaseText", ">>> 玩家回合开始", 36, Color.white, new Vector2(0, 210), font);
-        _turnText = CreateText("TurnText", "第 1 回合", 28, Color.white, new Vector2(0, 160), font);
+        // ===== 顶部横幅 =====
+        CreatePanel("TopBanner", new Vector2(0, 460), new Vector2(800, 80),
+            new Color(0.05f, 0.05f, 0.15f, 0.85f));
+        _phaseText = CreateText("PhaseText", "玩家回合开始", 30, Color.white, new Vector2(0, 465), font);
+        _turnText = CreateText("TurnText", "第 1 回合", 22, new Color(0.7f, 0.7f, 0.8f), new Vector2(0, 438), font);
 
-        _playerHPText = CreateText("PlayerHPText", "HP: 20/20", 24, Color.green, new Vector2(-430, 20), font);
-        _playerEnergyText = CreateText("PlayerEnergyText", "能量: 3/3", 24, Color.cyan, new Vector2(-430, -20), font);
-        _playerWaterText = CreateText("PlayerWaterText", "水源: 0", 24, new Color(0.35f, 0.75f, 1f), new Vector2(-430, -60), font);
-        _playerBlockText = CreateText("PlayerBlockText", "", 24, Color.yellow, new Vector2(-430, -100), font);
-        _playerPowerText = CreateText("PlayerPowerText", "", 22, new Color(1f, 0.5f, 0f), new Vector2(-430, -140), font);
+        // ===== 左侧：玩家信息面板 =====
+        CreatePanel("PlayerPanel", new Vector2(-460, 300), new Vector2(280, 280),
+            new Color(0.08f, 0.12f, 0.25f, 0.8f));
+        _playerNameText = CreateText("PlayerNameText", "玩家", 26, new Color(0.3f, 0.7f, 1f), new Vector2(-460, 395), font);
+        _playerNameText.fontStyle = FontStyle.Bold;
 
-        _enemyHPText = CreateText("EnemyHPText", "HP: 15/15", 24, Color.red, new Vector2(430, 20), font);
-        _enemyBlockText = CreateText("EnemyBlockText", "", 24, Color.yellow, new Vector2(430, -20), font);
-        _enemyPoisonText = CreateText("EnemyPoisonText", "", 22, new Color(0.3f, 0.8f, 0.1f), new Vector2(430, -60), font);
-        _enemyElementText = CreateText("EnemyElementText", "", 22, new Color(0.8f, 0.9f, 1f), new Vector2(430, -100), font);
-        _enemyNameText = CreateText("EnemyNameText", "", 20, new Color(0.9f, 0.5f, 0.3f), new Vector2(430, -140), font);
+        // HP 血条背景
+        var pHpBg = CreatePanelObj("PlayerHPBarBg", new Vector2(-460, 365), new Vector2(240, 22),
+            new Color(0.3f, 0.1f, 0.1f, 0.8f));
+        _playerHPBarBg = pHpBg.GetComponent<RectTransform>();
+
+        // HP 血条填充（锚点左侧，方便百分比缩放）
+        var pHpFill = CreatePanelObj("PlayerHPBarFill", new Vector2(-460, 365), new Vector2(240, 22),
+            new Color(0.2f, 0.85f, 0.3f, 0.85f));
+        _playerHPBarFill = pHpFill.GetComponent<RectTransform>();
+        _playerHPBarFill.pivot = new Vector2(0, 0.5f);
+        _playerHPBarFill.anchorMin = new Vector2(0.5f, 0.5f);
+        _playerHPBarFill.anchorMax = new Vector2(0.5f, 0.5f);
+        _playerHPBarFill.anchoredPosition = new Vector2(-580, 365);
+
+        _playerHPText = CreateText("PlayerHPText", "HP: 20/20", 16, Color.white, new Vector2(-460, 365), font);
+
+        _playerEnergyText = CreateText("PlayerEnergyText", "能量: 3/3", 22, Color.cyan, new Vector2(-460, 330), font);
+        _playerBlockText = CreateText("PlayerBlockText", "", 20, Color.yellow, new Vector2(-460, 298), font);
+        _playerPowerText = CreateText("PlayerPowerText", "", 20, new Color(1f, 0.5f, 0f), new Vector2(-460, 268), font);
+        _playerWaterText = CreateText("PlayerWaterText", "水源: 0", 20, new Color(0.35f, 0.75f, 1f), new Vector2(-460, 238), font);
+
+        // ===== 右侧：敌人信息面板 =====
+        CreatePanel("EnemyPanel", new Vector2(460, 300), new Vector2(280, 280),
+            new Color(0.2f, 0.08f, 0.08f, 0.8f));
+        _enemyNameText = CreateText("EnemyNameText", "", 26, new Color(1f, 0.4f, 0.3f), new Vector2(460, 395), font);
+        _enemyNameText.fontStyle = FontStyle.Bold;
+
+        // 敌人 HP 血条
+        var eHpBg = CreatePanelObj("EnemyHPBarBg", new Vector2(460, 365), new Vector2(240, 22),
+            new Color(0.3f, 0.1f, 0.1f, 0.8f));
+        _enemyHPBarBg = eHpBg.GetComponent<RectTransform>();
+
+        var eHpFill = CreatePanelObj("EnemyHPBarFill", new Vector2(460, 365), new Vector2(240, 22),
+            new Color(0.9f, 0.2f, 0.2f, 0.85f));
+        _enemyHPBarFill = eHpFill.GetComponent<RectTransform>();
+        _enemyHPBarFill.pivot = new Vector2(0, 0.5f);
+        _enemyHPBarFill.anchorMin = new Vector2(0.5f, 0.5f);
+        _enemyHPBarFill.anchorMax = new Vector2(0.5f, 0.5f);
+        _enemyHPBarFill.anchoredPosition = new Vector2(340, 365);
+
+        _enemyHPText = CreateText("EnemyHPText", "HP: 15/15", 16, Color.white, new Vector2(460, 365), font);
+
+        _enemyBlockText = CreateText("EnemyBlockText", "", 20, Color.yellow, new Vector2(460, 330), font);
+        _enemyPoisonText = CreateText("EnemyPoisonText", "", 20, new Color(0.3f, 0.8f, 0.1f), new Vector2(460, 298), font);
+        _enemyElementText = CreateText("EnemyElementText", "", 20, new Color(0.8f, 0.9f, 1f), new Vector2(460, 268), font);
         _enemyIntentObj = CreateIntentDisplay(font);
 
-        _drawPileText = CreateText("DrawPileText", "抽牌堆: 0", 18, Color.white, new Vector2(-720, -280), font);
-        _discardPileText = CreateText("DiscardPileText", "弃牌堆: 0", 18, Color.white, new Vector2(-720, -315), font);
-        _exhaustPileText = CreateText("ExhaustPileText", "消耗区: 0", 18, Color.white, new Vector2(-720, -350), font);
-        _powerPileText = CreateText("PowerPileText", "能力区: 0", 18, Color.white, new Vector2(-720, -385), font);
-        _battleLogText = CreateText("BattleLogText", "战斗日志", 18, new Color(0.95f, 0.95f, 0.85f), new Vector2(610, -300), font);
+        // ===== 底部左侧：牌堆信息 =====
+        CreatePanel("DeckPanel", new Vector2(-580, -380), new Vector2(340, 110),
+            new Color(0.05f, 0.08f, 0.12f, 0.75f));
+        _drawPileText = CreateText("DrawPileText", "抽牌堆: 0", 17, Color.white, new Vector2(-720, -340), font);
+        _discardPileText = CreateText("DiscardPileText", "弃牌堆: 0", 17, Color.white, new Vector2(-545, -340), font);
+        _exhaustPileText = CreateText("ExhaustPileText", "消耗区: 0", 17, Color.white, new Vector2(-495, -390), font);
+        _powerPileText = CreateText("PowerPileText", "能力区: 0", 17, Color.white, new Vector2(-665, -390), font);
+
+        // ===== 底部右侧：战斗日志 =====
+        CreatePanel("LogPanel", new Vector2(620, -300), new Vector2(280, 110),
+            new Color(0.05f, 0.08f, 0.10f, 0.75f));
+        _battleLogText = CreateText("BattleLogText", "", 14, new Color(0.85f, 0.85f, 0.75f), new Vector2(620, -295), font);
         _battleLogText.alignment = TextAnchor.UpperLeft;
         _battleLogText.horizontalOverflow = HorizontalWrapMode.Wrap;
         _battleLogText.verticalOverflow = VerticalWrapMode.Truncate;
-        _battleLogText.rectTransform.sizeDelta = new Vector2(520, 220);
+        _battleLogText.rectTransform.sizeDelta = new Vector2(260, 90);
 
         var handObj = new GameObject("HandArea", typeof(Image));
         _handArea = handObj.transform;
@@ -293,6 +355,49 @@ public class BattleUI : MonoBehaviour
         return txt;
     }
 
+    private void CreatePanel(string name, Vector2 anchoredPos, Vector2 size, Color color)
+    {
+        CreatePanelObj(name, anchoredPos, size, color);
+    }
+
+    private GameObject CreatePanelObj(string name, Vector2 anchoredPos, Vector2 size, Color color)
+    {
+        GameObject obj = new GameObject(name, typeof(Image));
+        obj.transform.SetParent(_canvas.transform, false);
+
+        var img = obj.GetComponent<Image>();
+        img.color = color;
+        img.raycastTarget = false;
+
+        var rect = obj.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = anchoredPos;
+        rect.sizeDelta = size;
+
+        return obj;
+    }
+
+    private void UpdateHPBar(RectTransform fill, RectTransform bg, float currentHP, float maxHP, ref float displayedHP)
+    {
+        if (fill == null || bg == null || maxHP <= 0) return;
+
+        float ratio = Mathf.Clamp01(currentHP / maxHP);
+        fill.sizeDelta = new Vector2(bg.rect.width * ratio, fill.sizeDelta.y);
+
+        var img = fill.GetComponent<Image>();
+        if (img != null)
+        {
+            if (ratio < 0.3f)
+                img.color = new Color(0.95f, 0.15f, 0.1f, 0.85f);
+            else if (ratio < 0.6f)
+                img.color = new Color(0.95f, 0.7f, 0.1f, 0.85f);
+            else
+                img.color = new Color(0.2f, 0.85f, 0.3f, 0.85f);
+        }
+    }
+
     private Button CreateEndTurnButton(Font font)
     {
         GameObject btnObj = new GameObject("EndTurnButton", typeof(Image), typeof(Button));
@@ -302,7 +407,7 @@ public class BattleUI : MonoBehaviour
         rect.anchorMin = new Vector2(0.5f, 0.5f);
         rect.anchorMax = new Vector2(0.5f, 0.5f);
         rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = new Vector2(0, -250);
+        rect.anchoredPosition = new Vector2(0, -160);
         rect.sizeDelta = new Vector2(200, 60);
 
         var image = btnObj.GetComponent<Image>();
@@ -466,8 +571,13 @@ public class BattleUI : MonoBehaviour
 
     private void RefreshAllInfo()
     {
+        if (_playerNameText != null)
+            _playerNameText.text = "玩家";
         if (_playerHPComponent != null && _playerHPText != null)
+        {
             _playerHPText.text = $"HP: {_playerHPComponent.CurrentHP}/{_playerHPComponent.MaxHP}";
+            UpdateHPBar(_playerHPBarFill, _playerHPBarBg, _playerHPComponent.CurrentHP, _playerHPComponent.MaxHP, ref _displayedPlayerHP);
+        }
         if (_playerEnergyComponent != null && _playerEnergyText != null)
             _playerEnergyText.text = $"能量: {_playerEnergyComponent.CurrentEnergy}/{_playerEnergyComponent.MaxEnergy}";
         if (_playerWaterText != null)
@@ -483,7 +593,10 @@ public class BattleUI : MonoBehaviour
             _playerPowerText.text = power > 0 ? $"力量: {power}" : "";
         }
         if (_enemyHPComponent != null && _enemyHPText != null)
+        {
             _enemyHPText.text = $"HP: {_enemyHPComponent.CurrentHP}/{_enemyHPComponent.MaxHP}";
+            UpdateHPBar(_enemyHPBarFill, _enemyHPBarBg, _enemyHPComponent.CurrentHP, _enemyHPComponent.MaxHP, ref _displayedEnemyHP);
+        }
         if (_enemyBlockComponent != null && _enemyBlockText != null)
         {
             int block = _enemyBlockComponent.CurrentBlock;
@@ -532,8 +645,15 @@ public class BattleUI : MonoBehaviour
         {
             intentUI.GetIntentDisplay(out string intentText, out Color intentColor);
             _enemyIntentText.text = intentText;
-            _enemyIntentText.color = intentColor;
-            _enemyIntentBg.color = new Color(intentColor.r, intentColor.g, intentColor.b, 0.25f);
+            _enemyIntentText.color = Color.white;
+
+            // 内部背景：意图色半透明
+            _enemyIntentBg.color = new Color(intentColor.r, intentColor.g, intentColor.b, 0.35f);
+
+            // 箭头跟随意图颜色
+            if (_enemyIntentArrow != null)
+                _enemyIntentArrow.color = new Color(intentColor.r, intentColor.g, intentColor.b, 0.7f);
+
             _enemyIntentObj.SetActive(!string.IsNullOrEmpty(intentText));
         }
         else
@@ -551,7 +671,7 @@ public class BattleUI : MonoBehaviour
         if (cam == null) return;
 
         Vector3 worldPos = _battleManager.EnemyObject.transform.position;
-        worldPos.y += 2.0f; // 敌人头顶上方偏移
+        worldPos += new Vector3(2.0f, -1.5f, 0); // 敌人下方偏右
         Vector3 screenPos = cam.WorldToScreenPoint(worldPos);
 
         RectTransform rect = _enemyIntentObj.GetComponent<RectTransform>();
@@ -560,31 +680,66 @@ public class BattleUI : MonoBehaviour
 
     private GameObject CreateIntentDisplay(Font font)
     {
-        GameObject container = new GameObject("EnemyIntentDisplay", typeof(Image));
+        // 主容器
+        GameObject container = new GameObject("EnemyIntentDisplay");
         container.transform.SetParent(_canvas.transform, false);
+        var rootRect = container.AddComponent<RectTransform>();
+        rootRect.sizeDelta = new Vector2(160, 44);
+        rootRect.pivot = new Vector2(0.5f, 1f);
 
-        var rect = container.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(180, 50);
-        rect.pivot = new Vector2(0.5f, 0.5f);
+        // 暗色外框（作为描边效果）
+        var outlineObj = new GameObject("Outline", typeof(Image));
+        outlineObj.transform.SetParent(container.transform, false);
+        _enemyIntentOutline = outlineObj.GetComponent<Image>();
+        _enemyIntentOutline.color = new Color(0f, 0f, 0f, 0.6f);
+        _enemyIntentOutline.raycastTarget = false;
+        var outlineRect = outlineObj.GetComponent<RectTransform>();
+        outlineRect.anchorMin = Vector2.zero;
+        outlineRect.anchorMax = Vector2.one;
+        outlineRect.offsetMin = new Vector2(-3, -3);
+        outlineRect.offsetMax = new Vector2(3, 3);
 
-        _enemyIntentBg = container.GetComponent<Image>();
-        _enemyIntentBg.color = new Color(0.5f, 0.5f, 0.5f, 0.25f);
+        // 内部背景
+        var bgObj = new GameObject("Bg", typeof(Image));
+        bgObj.transform.SetParent(container.transform, false);
+        _enemyIntentBg = bgObj.GetComponent<Image>();
+        _enemyIntentBg.raycastTarget = false;
+        var bgRect = bgObj.GetComponent<RectTransform>();
+        bgRect.anchorMin = Vector2.zero;
+        bgRect.anchorMax = Vector2.one;
+        bgRect.offsetMin = Vector2.zero;
+        bgRect.offsetMax = Vector2.zero;
 
-        GameObject textObj = new GameObject("IntentText", typeof(Text));
+        // 文字
+        var textObj = new GameObject("IntentText", typeof(Text));
         textObj.transform.SetParent(container.transform, false);
         _enemyIntentText = textObj.GetComponent<Text>();
         _enemyIntentText.text = "";
-        _enemyIntentText.fontSize = 28;
+        _enemyIntentText.fontSize = 22;
+        _enemyIntentText.fontStyle = FontStyle.Bold;
         _enemyIntentText.font = font;
         _enemyIntentText.color = Color.white;
         _enemyIntentText.alignment = TextAnchor.MiddleCenter;
         _enemyIntentText.horizontalOverflow = HorizontalWrapMode.Overflow;
-
         var textRect = textObj.GetComponent<RectTransform>();
         textRect.anchorMin = Vector2.zero;
         textRect.anchorMax = Vector2.one;
-        textRect.offsetMin = Vector2.zero;
-        textRect.offsetMax = Vector2.zero;
+        textRect.offsetMin = new Vector2(8, 2);
+        textRect.offsetMax = new Vector2(-8, -2);
+
+        // 向下的三角箭头
+        var arrowObj = new GameObject("Arrow", typeof(Image));
+        arrowObj.transform.SetParent(container.transform, false);
+        _enemyIntentArrow = arrowObj.GetComponent<Image>();
+        _enemyIntentArrow.raycastTarget = false;
+        _enemyIntentArrow.color = new Color(0f, 0f, 0f, 0.6f);
+        var arrowRect = arrowObj.GetComponent<RectTransform>();
+        arrowRect.anchorMin = new Vector2(0.5f, 0);
+        arrowRect.anchorMax = new Vector2(0.5f, 0);
+        arrowRect.pivot = new Vector2(0.5f, 0);
+        arrowRect.anchoredPosition = new Vector2(0, -1);
+        arrowRect.sizeDelta = new Vector2(10, 8);
+        arrowRect.localRotation = Quaternion.Euler(0, 0, 45);
 
         container.SetActive(false);
         return container;

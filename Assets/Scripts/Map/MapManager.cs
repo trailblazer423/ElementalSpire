@@ -227,10 +227,15 @@ public class MapManager : MonoBehaviour
                 {
                     // 第3关通关，回到主菜单
                     Debug.Log("[MapManager] 全部3关通关，游戏胜利！");
+                    ChallengeRunTracker.EnsureExists().EndRun(true);
                     SceneManager.LoadScene("MainMenuScene");
                     return;
                 }
 
+                ChallengeRunTracker.EnsureExists().MarkProgress(GameManager.Instance.currentFloor, 0);
+
+                // 有下一关，重置所有节点（复用同一组10个节点）
+                Debug.Log($"[MapManager] 进入第 {GameManager.Instance.currentFloor} 关");
                 // 进入下一层，重置所有节点（同一层10个节点）
                 Debug.Log($"[MapManager] 进入第 {GameManager.Instance.currentFloor} 层");
                 ResetNodesForNewFloor();

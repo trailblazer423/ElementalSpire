@@ -8,6 +8,7 @@ using UnityEngine;
 public class drawPile : MonoBehaviour
 {
     private List<CardInstance> _cards = new List<CardInstance>();
+    private static System.Random _rng = new System.Random();
 
     public int Count => _cards.Count;
     public bool IsEmpty => _cards.Count == 0;
@@ -20,7 +21,7 @@ public class drawPile : MonoBehaviour
 
     public void Shuffle()
     {
-        System.Random rng = new System.Random();
+        var rng = _rng;
         int n = _cards.Count;
         while (n > 1)
         {

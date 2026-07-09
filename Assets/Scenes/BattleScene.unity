@@ -297,7 +297,6 @@ GameObject:
   - component: {fileID: 468120973}
   - component: {fileID: 468120974}
   - component: {fileID: 468120976}
-  - component: {fileID: 468120975}
   - component: {fileID: 468120977}
   m_Layer: 0
   m_Name: Enemy
@@ -388,21 +387,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   attackDamage: 6
   defendAmount: 5
---- !u!114 &468120975
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 468120968}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: b0c8053c09bafef46a1530f34948e366, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  enemyData: {fileID: 11400000, guid: 3a50c2520ca47de459ad2399548b53c2, type: 2}
-  currentIntent: 5
-  intentValue: 0
 --- !u!114 &468120976
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -415,7 +399,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3669937159c832c4bb0d6b3cd87210a3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enemyData: {fileID: 11400000, guid: bd77c4f9c3576864ba1245641bd71aff, type: 2}
+  enemyData: {fileID: 0}
   currentIntent: 5
   intentValue: 0
 --- !u!114 &468120977
@@ -668,6 +652,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _playerObject: {fileID: 415109997}
   _enemyObject: {fileID: 468120968}
+  _normalEnemyPool:
+  - {fileID: 11400000, guid: f3c1dcec9018d5948b54366dfc700d47, type: 2}
+  - {fileID: 11400000, guid: dbeed1542f47fc34b8a68288d00e3c8b, type: 2}
+  - {fileID: 11400000, guid: 87fc907e74e08474ba6f2046500aecff, type: 2}
+  _bossEnemyData: {fileID: 11400000, guid: 01bf7e0d2102c5c43affed393c292135, type: 2}
   _startingDeck: 1
   _useDemoMixedDeck: 1
   _returnToMapOnWin: 0

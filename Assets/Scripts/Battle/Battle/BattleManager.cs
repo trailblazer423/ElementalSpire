@@ -15,6 +15,10 @@ public class BattleManager : MonoBehaviour
     [SerializeField] private GameObject _playerObject;
     [SerializeField] private GameObject _enemyObject;
 
+    [Header("敌人配置")]
+    [SerializeField] private EnemyData[] _normalEnemyPool;  // 普通/精英敌人池
+    [SerializeField] private EnemyData _bossEnemyData;       // Boss 敌人数据
+
     [Header("初始牌组")]
     [SerializeField] private DeckPreset _startingDeck = DeckPreset.All;
     [SerializeField] private bool _useDemoMixedDeck = true;
@@ -61,7 +65,31 @@ public class BattleManager : MonoBehaviour
 
     void Awake()
     {
+        EnsureGameManager();
         CacheComponents();
+
+        // 从 GameManager 读取角色状态到战斗组件
+        if (GameManager.Instance != null)
+        {
+            if (_playerHP != null)
+                _playerHP.CurrentHP = GameManager.Instance.playerHp;
+
+            var maxHpComp = _playerObject?.GetComponent<playerMaxHP>();
+            if (maxHpComp != null)
+                maxHpComp.maxHP = GameManager.Instance.playerMaxHp;
+
+            var maxEnergyComp = _playerObject?.GetComponent<maxEnergy>();
+            if (maxEnergyComp != null)
+                maxEnergyComp.energyMax = GameManager.Instance.maxEnergy;
+
+            if (_playerEnergy != null)
+                _playerEnergy.CurrentEnergy = GameManager.Instance.currentEnergy;
+
+            // 格挡值每场战斗重置为0，不继承
+        }
+
+        // 根据地图节点选择敌人数据
+        SelectEnemyData();
 
         _playerState?.ResetCombatState();
         _enemyState?.ResetCombatState();
@@ -85,7 +113,7 @@ public class BattleManager : MonoBehaviour
         }
 
         _deckManager = new DeckManager(_drawPile, _handCards, _discardPile);
-        _deckManager.Initialize(BuildInitialDeck(), !_useDemoMixedDeck);
+        _deckManager.Initialize(BuildInitialDeck(), shuffle: true);
 
         _cardEffectResolver = new CardEffectResolver(this, _deckManager, _playerEnergy, _playerBlock, _playerHP, _playerState);
     }
@@ -101,6 +129,11 @@ public class BattleManager : MonoBehaviour
             ? "演示混合牌组已启用：开局可直接测试火/毒/水反应。"
             : $"起始牌组：{_startingDeck}");
         _turnManager.StartBattle();
+
+        // 确保意图已生成并通知 UI 刷新（解决 Awake 时序问题）
+        if (_enemyController != null && _enemyController.enemyData != null)
+            _enemyController.DecideNextIntent();
+        StartCoroutine(DelayedRefreshUI());
     }
 
     void OnDestroy()
@@ -164,22 +197,25 @@ public class BattleManager : MonoBehaviour
     private IEnumerable<CardInstance> BuildInitialDeck()
     {
         var gameManager = GameManager.Instance;
-        if (!_useDemoMixedDeck && gameManager != null && gameManager.playerCardBag != null && gameManager.playerCardBag.Count > 0)
+
+        // 优先使用地图中存储的玩家卡牌背包（已包含初始牌 + 选牌 + 奖励牌）
+        if (gameManager != null && gameManager.playerCardBag != null && gameManager.playerCardBag.Count > 0)
         {
-            var deck = CardDeckLibrary.GetStarterCardInstances().ToList();
+            var deck = new List<CardInstance>();
             foreach (string savedCardId in gameManager.playerCardBag)
             {
                 CardInstance card = CreateCardInstanceFromSavedId(savedCardId);
                 if (card != null)
                     deck.Add(card);
                 else
-                    Debug.LogWarning($"[BattleManager] 未找到奖励卡牌ID: {savedCardId}");
+                    Debug.LogWarning($"[BattleManager] 未找到卡牌ID: {savedCardId}");
             }
 
             if (deck.Count > 0)
                 return deck;
         }
 
+        // 无地图数据时使用演示牌组（测试用）
         if (_useDemoMixedDeck)
         {
             return new[]
@@ -481,6 +517,14 @@ public class BattleManager : MonoBehaviour
             GameManager.Instance.currentEnergy = _playerEnergy.CurrentEnergy;
         if (_playerBlock != null)
             GameManager.Instance.playerBlock = _playerBlock.CurrentBlock;
+
+        // 同步最大血量与最大能量
+        var maxHpComp = _playerObject?.GetComponent<playerMaxHP>();
+        if (maxHpComp != null)
+            GameManager.Instance.playerMaxHp = maxHpComp.maxHP;
+        var maxEnergyComp = _playerObject?.GetComponent<maxEnergy>();
+        if (maxEnergyComp != null)
+            GameManager.Instance.maxEnergy = maxEnergyComp.energyMax;
     }
 
     private IEnumerator ReturnToMapAfterDelay()
@@ -507,6 +551,56 @@ public class BattleManager : MonoBehaviour
     public void NotifyBattleInfoChanged()
     {
         OnBattleInfoChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// 根据 GameManager 中的节点类型和关卡层数选择合适的敌人数据
+    /// </summary>
+    private void SelectEnemyData()
+    {
+        if (_enemyController == null)
+        {
+            Debug.LogWarning("[BattleManager] EnemyController 为空，无法选择敌人数据");
+            return;
+        }
+
+        var gm = GameManager.Instance;
+
+        // Boss 判断：有 GameManager 时读节点类型；无则随机
+        bool isBoss = gm != null && gm.currentNodeType == "Boss";
+
+        if (isBoss && _bossEnemyData != null)
+        {
+            _enemyController.SetEnemyData(_bossEnemyData);
+        }
+        else if (_normalEnemyPool != null && _normalEnemyPool.Length > 0)
+        {
+            int index = UnityEngine.Random.Range(0, _normalEnemyPool.Length);
+            _enemyController.SetEnemyData(_normalEnemyPool[index]);
+        }
+        else if (_bossEnemyData != null)
+        {
+            // 兜底：没有普通敌人池时用 Boss
+            _enemyController.SetEnemyData(_bossEnemyData);
+        }
+    }
+
+    /// <summary>
+    /// 等一帧后刷新 UI，确保 BattleUI 已完成初始化并订阅了事件
+    /// </summary>
+    private IEnumerator DelayedRefreshUI()
+    {
+        yield return null; // 等待一帧，让 BattleUI 完成初始化
+        NotifyBattleInfoChanged();
+    }
+
+    private void EnsureGameManager()
+    {
+        if (GameManager.Instance != null) return;
+        var go = new GameObject("GameManager");
+        go.AddComponent<GameManager>();
+        DontDestroyOnLoad(go);
+        Debug.Log("[BattleManager] GameManager 不存在，已自动创建（直接测试 BattleScene 时的兜底）");
     }
 
 #if UNITY_EDITOR

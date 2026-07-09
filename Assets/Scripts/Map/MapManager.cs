@@ -326,15 +326,15 @@ public class MapManager : MonoBehaviour
         var go = new GameObject("GameManager");
         go.AddComponent<GameManager>();
         Object.DontDestroyOnLoad(go);
-        Debug.Log("[MapManager] GameManager �����ڣ����Զ�����");
+        Debug.Log("[MapManager] GameManager 不存在，自动创建");
     }
 
     private enum DraftPhase
     {
-        Start,      // ����ѡ��
-        Battle1_3,  // 1-3��ս������
-        Battle4_7,  // 4-7��ս������
-        Battle8_10  // 8-10��ս������
+        Start,      // 开局选牌
+        Battle1_3,  // 1-3关战斗奖励
+        Battle4_7,  // 4-7关战斗奖励
+        Battle8_10  // 8-10关战斗奖励
     }
 
     /// <summary>
@@ -342,7 +342,7 @@ public class MapManager : MonoBehaviour
     /// </summary>
     public void OnNodeClicked(int nodeId, string nodeType)
     {
-        // ��ʱ���ݣ�ս���ڵ��վ��г��������������Ȳ�����
+        // 临时数据：战斗节点先直接进入战斗，其他类型后续补充
         if (nodeType == "Normal" || nodeType == "Elite" || nodeType == "Boss")
         {
             GameManager.Instance.currentNodeId = nodeId;

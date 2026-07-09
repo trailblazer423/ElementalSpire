@@ -26,6 +26,25 @@ public class EnemyController : MonoBehaviour
 
     public bool IsBoss => enemyData != null && enemyData.enemyType == EnemyType.Boss;
 
+    /// <summary>
+    /// 由 BattleManager 调用，动态注入敌人数据并完成初始化（HP/意图）。
+    /// 解决 Awake/Start 执行顺序不确定导致 enemyData 为 null 的问题。
+    /// </summary>
+    public void SetEnemyData(EnemyData data)
+    {
+        if (data == null) return;
+
+        enemyData = data;
+        enemyMaxHP maxHPComp = GetComponent<enemyMaxHP>();
+        if (maxHPComp != null)
+            maxHPComp.maxHP = data.maxHP;
+        if (_enemyHP != null)
+            _enemyHP.CurrentHP = data.maxHP;
+
+        DecideNextIntent();
+        Debug.Log($"[EnemyController] 敌人数据已注入：{data.enemyName} (HP:{data.maxHP})");
+    }
+
     void Start()
     {
         _enemyHP = GetComponent<enemyHP>();
@@ -37,19 +56,10 @@ public class EnemyController : MonoBehaviour
         {
             enemyMaxHP maxHPComp = GetComponent<enemyMaxHP>();
             if (maxHPComp != null)
-            {
                 maxHPComp.maxHP = enemyData.maxHP;
-            }
-
             if (_enemyHP != null)
                 _enemyHP.CurrentHP = enemyData.maxHP;
-
-            // 预决定第一个意图，让玩家在首回合就能看到
             DecideNextIntent();
-        }
-        else
-        {
-            Debug.LogWarning($"[EnemyController] {gameObject.name} 的 enemyData 未赋值！请在 Inspector 中指定 EnemyData 资产。");
         }
     }
 

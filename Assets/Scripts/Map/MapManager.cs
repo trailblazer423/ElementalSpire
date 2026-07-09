@@ -199,6 +199,7 @@ public class MapManager : MonoBehaviour
             int winNodeId = GameManager.Instance.currentNodeId;
             bool isLastNode = GameManager.Instance.IsLastNodeOfFloor();
             Debug.Log($"[MapManager] 战斗胜利：winNodeId={winNodeId}, isLastNode={isLastNode}");
+            ChallengeRunTracker.EnsureExists().MarkProgress(GameManager.Instance.currentFloor, winNodeId);
 
             foreach (var node in AllMapNodes)
             {
@@ -210,11 +211,13 @@ public class MapManager : MonoBehaviour
 
                 if (node.NodeId == winNodeId)
                 {
+                    GameManager.Instance.MarkNodeCleared(winNodeId);
                     node.IsCleared = true;
                     RewardManager.Instance?.GrantReward(node.ClearReward);
                 }
                 else if (!isLastNode && node.NodeId == winNodeId + 1)
                 {
+                    GameManager.Instance.MarkNodeUnlocked(winNodeId + 1);
                     node.IsUnlocked = true;
                 }
             }
@@ -234,8 +237,6 @@ public class MapManager : MonoBehaviour
 
                 ChallengeRunTracker.EnsureExists().MarkProgress(GameManager.Instance.currentFloor, 0);
 
-                // 有下一关，重置所有节点（复用同一组10个节点）
-                Debug.Log($"[MapManager] 进入第 {GameManager.Instance.currentFloor} 关");
                 // 进入下一层，重置所有节点（同一层10个节点）
                 Debug.Log($"[MapManager] 进入第 {GameManager.Instance.currentFloor} 层");
                 ResetNodesForNewFloor();
@@ -249,8 +250,31 @@ public class MapManager : MonoBehaviour
         RefreshAllNodes();
     }
 
+    private void ApplyPersistentNodeState()
+    {
+        if (GameManager.Instance == null || AllMapNodes == null)
+            return;
+
+        foreach (var node in AllMapNodes)
+        {
+            if (node == null)
+                continue;
+
+            node.IsCleared = GameManager.Instance.IsNodeCleared(node.NodeId);
+            node.IsUnlocked = GameManager.Instance.IsNodeUnlocked(node.NodeId);
+        }
+    }
+
     private void RefreshAllNodes()
     {
+        ApplyPersistentNodeState();
+
+        if (AllMapNodes == null)
+        {
+            Debug.LogWarning("[MapManager] AllMapNodes 未配置，无法刷新地图节点");
+            return;
+        }
+
         foreach (var node in AllMapNodes)
         {
             if (node != null)
@@ -265,6 +289,9 @@ public class MapManager : MonoBehaviour
     {
         int minNodeId = int.MaxValue;
         int resetCount = 0;
+
+        if (GameManager.Instance != null)
+            GameManager.Instance.ResetMapProgressForCurrentFloor();
 
         foreach (var node in AllMapNodes)
         {
@@ -295,6 +322,9 @@ public class MapManager : MonoBehaviour
         {
             if (node != null && node.NodeId == minNodeId)
             {
+                if (GameManager.Instance != null)
+                    GameManager.Instance.MarkNodeUnlocked(minNodeId);
+
                 node.IsUnlocked = true;
                 Debug.Log($"[MapManager] 已解锁节点 NodeId={node.NodeId}");
                 break;
@@ -304,9 +334,14 @@ public class MapManager : MonoBehaviour
 
     public void UnlockNextNodes(int currentNodeId)
     {
+        int nextNodeId = currentNodeId + 1;
+
+        if (GameManager.Instance != null)
+            GameManager.Instance.MarkNodeUnlocked(nextNodeId);
+
         foreach (var node in AllMapNodes)
         {
-            if (node != null && node.NodeId == currentNodeId + 1)
+            if (node != null && node.NodeId == nextNodeId)
             {
                 node.IsUnlocked = true;
                 node.RefreshView();
@@ -338,16 +373,40 @@ public class MapManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 所有地图节点点击统一入口，占位方法，后续需补充完整逻辑
+    /// 所有地图节点点击统一入口。
     /// </summary>
     public void OnNodeClicked(int nodeId, string nodeType)
     {
-        // 临时数据：战斗节点先直接进入战斗，其他类型后续补充
-        if (nodeType == "Normal" || nodeType == "Elite" || nodeType == "Boss")
+        if (GameManager.Instance == null)
         {
-            GameManager.Instance.currentNodeId = nodeId;
-            GameManager.Instance.currentNodeType = nodeType;
-            SceneManager.LoadScene("BattleScene");
+            Debug.LogError("[MapManager] GameManager 不存在，无法处理节点点击");
+            return;
         }
+
+        if (!GameManager.Instance.IsNodeUnlocked(nodeId))
+        {
+            Debug.LogWarning($"[MapManager] 节点 {nodeId} 尚未解锁，忽略点击");
+            return;
+        }
+
+        GameManager.Instance.currentNodeId = nodeId;
+        GameManager.Instance.currentNodeType = nodeType;
+        ChallengeRunTracker.EnsureExists().MarkProgress(GameManager.Instance.currentFloor, nodeId);
+
+        if (IsBattleNodeType(nodeType))
+        {
+            SceneManager.LoadScene("BattleScene");
+            return;
+        }
+
+        Debug.LogWarning($"[MapManager] 节点 {nodeId} 的类型 {nodeType} 暂未接入，未进入战斗");
+    }
+
+    private bool IsBattleNodeType(string nodeType)
+    {
+        return string.IsNullOrEmpty(nodeType)
+            || nodeType == "Normal"
+            || nodeType == "Elite"
+            || nodeType == "Boss";
     }
 }

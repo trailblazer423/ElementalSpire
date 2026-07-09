@@ -271,7 +271,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bed2205c74e4857498e08f048edcdf5a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxHP: 30
+  maxHP: 100
 --- !u!114 &415109999
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -908,10 +908,10 @@ MonoBehaviour:
   _playerObject: {fileID: 415109997}
   _enemyObject: {fileID: 468120968}
   _normalEnemyPool:
-  - {fileID: 11400000, guid: f3c1dcec9018d5948b54366dfc700d47, type: 2}
-  - {fileID: 11400000, guid: dbeed1542f47fc34b8a68288d00e3c8b, type: 2}
-  - {fileID: 11400000, guid: 87fc907e74e08474ba6f2046500aecff, type: 2}
-  _bossEnemyData: {fileID: 11400000, guid: 01bf7e0d2102c5c43affed393c292135, type: 2}
+  - {fileID: 11400000, guid: ea3dce4fd74e2ab43ac8a61e99ef2de8, type: 2}
+  - {fileID: 11400000, guid: 02d88b91cd9d6944580907a7ff80a441, type: 2}
+  - {fileID: 11400000, guid: b53a635ae6c0d5d4fb6707e64674e21b, type: 2}
+  _bossEnemyData: {fileID: 11400000, guid: f75747f1b70a18f45b8458214934f25d, type: 2}
   _startingDeck: 1
   _useDemoMixedDeck: 1
   _returnToMapOnWin: 0

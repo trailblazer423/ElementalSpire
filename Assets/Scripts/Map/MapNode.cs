@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -25,24 +23,53 @@ public class MapNode : MonoBehaviour
     {
         nodeBtn = GetComponent<Button>();
         nodeImage = GetComponent<Image>();
-        nodeBtn.onClick.AddListener(OnMapNodeClicked);
+
+        if (nodeBtn != null)
+        {
+            nodeBtn.onClick.AddListener(OnMapNodeClicked);
+        }
+    }
+
+    void OnDestroy()
+    {
+        if (nodeBtn != null)
+        {
+            nodeBtn.onClick.RemoveListener(OnMapNodeClicked);
+        }
     }
 
     // 刷新节点显示状态
     public void RefreshView()
     {
-        nodeBtn.interactable = IsUnlocked;
-        if (IsCleared)
+        if (nodeBtn != null)
         {
-            nodeImage.color = Color.green;
+            nodeBtn.interactable = IsUnlocked;
         }
-        else if (IsUnlocked)
+
+        if (nodeImage != null)
         {
-            nodeImage.color = Color.white;
+            if (IsCleared)
+            {
+                nodeImage.color = Color.green;
+            }
+            else if (IsUnlocked)
+            {
+                nodeImage.color = Color.white;
+            }
+            else
+            {
+                nodeImage.color = Color.gray;
+            }
         }
-        else
+
+        if (clearMark != null)
         {
-            nodeImage.color = Color.gray;
+            clearMark.SetActive(IsCleared);
+        }
+
+        if (nodeNameText != null)
+        {
+            nodeNameText.text = NodeType;
         }
     }
 
@@ -50,12 +77,14 @@ public class MapNode : MonoBehaviour
     {
         if (!IsUnlocked) return;
 
-
         // 所有节点逻辑统一交给 MapManager 处理
         if (MapManager.Instance != null)
         {
             MapManager.Instance.OnNodeClicked(NodeId, NodeType);
         }
-
+        else
+        {
+            Debug.LogError("[MapNode] MapManager 不存在，无法处理节点点击");
+        }
     }
 }

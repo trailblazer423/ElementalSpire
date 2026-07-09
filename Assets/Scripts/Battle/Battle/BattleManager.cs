@@ -15,6 +15,10 @@ public class BattleManager : MonoBehaviour
     [SerializeField] private GameObject _playerObject;
     [SerializeField] private GameObject _enemyObject;
 
+    [Header("敌人配置")]
+    [SerializeField] private EnemyData[] _normalEnemyPool;  // 普通/精英敌人池
+    [SerializeField] private EnemyData _bossEnemyData;       // Boss 敌人数据
+
     [Header("初始牌组")]
     [SerializeField] private DeckPreset _startingDeck = DeckPreset.All;
     [SerializeField] private bool _useDemoMixedDeck = true;
@@ -61,6 +65,7 @@ public class BattleManager : MonoBehaviour
 
     void Awake()
     {
+        EnsureGameManager();
         CacheComponents();
 
         // 从 GameManager 读取角色状态到战斗组件
@@ -82,6 +87,9 @@ public class BattleManager : MonoBehaviour
 
             // 格挡值每场战斗重置为0，不继承
         }
+
+        // 根据地图节点选择敌人数据
+        SelectEnemyData();
 
         _playerState?.ResetCombatState();
         _enemyState?.ResetCombatState();
@@ -121,6 +129,11 @@ public class BattleManager : MonoBehaviour
             ? "演示混合牌组已启用：开局可直接测试火/毒/水反应。"
             : $"起始牌组：{_startingDeck}");
         _turnManager.StartBattle();
+
+        // 确保意图已生成并通知 UI 刷新（解决 Awake 时序问题）
+        if (_enemyController != null && _enemyController.enemyData != null)
+            _enemyController.DecideNextIntent();
+        StartCoroutine(DelayedRefreshUI());
     }
 
     void OnDestroy()
@@ -536,6 +549,56 @@ public class BattleManager : MonoBehaviour
     public void NotifyBattleInfoChanged()
     {
         OnBattleInfoChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// 根据 GameManager 中的节点类型和关卡层数选择合适的敌人数据
+    /// </summary>
+    private void SelectEnemyData()
+    {
+        if (_enemyController == null)
+        {
+            Debug.LogWarning("[BattleManager] EnemyController 为空，无法选择敌人数据");
+            return;
+        }
+
+        var gm = GameManager.Instance;
+
+        // Boss 判断：有 GameManager 时读节点类型；无则随机
+        bool isBoss = gm != null && gm.currentNodeType == "Boss";
+
+        if (isBoss && _bossEnemyData != null)
+        {
+            _enemyController.SetEnemyData(_bossEnemyData);
+        }
+        else if (_normalEnemyPool != null && _normalEnemyPool.Length > 0)
+        {
+            int index = UnityEngine.Random.Range(0, _normalEnemyPool.Length);
+            _enemyController.SetEnemyData(_normalEnemyPool[index]);
+        }
+        else if (_bossEnemyData != null)
+        {
+            // 兜底：没有普通敌人池时用 Boss
+            _enemyController.SetEnemyData(_bossEnemyData);
+        }
+    }
+
+    /// <summary>
+    /// 等一帧后刷新 UI，确保 BattleUI 已完成初始化并订阅了事件
+    /// </summary>
+    private IEnumerator DelayedRefreshUI()
+    {
+        yield return null; // 等待一帧，让 BattleUI 完成初始化
+        NotifyBattleInfoChanged();
+    }
+
+    private void EnsureGameManager()
+    {
+        if (GameManager.Instance != null) return;
+        var go = new GameObject("GameManager");
+        go.AddComponent<GameManager>();
+        DontDestroyOnLoad(go);
+        Debug.Log("[BattleManager] GameManager 不存在，已自动创建（直接测试 BattleScene 时的兜底）");
     }
 
 #if UNITY_EDITOR

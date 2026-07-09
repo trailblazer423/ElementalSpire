@@ -31,6 +31,7 @@ public class BattleUI : MonoBehaviour
     private Text _enemyBlockText;
     private Text _enemyPoisonText;
     private Text _enemyElementText;
+    private Text _enemyNameText;
     private GameObject _enemyIntentObj;
     private Text _enemyIntentText;
     private Image _enemyIntentBg;
@@ -154,6 +155,7 @@ public class BattleUI : MonoBehaviour
         _enemyBlockText = CreateText("EnemyBlockText", "", 24, Color.yellow, new Vector2(430, -20), font);
         _enemyPoisonText = CreateText("EnemyPoisonText", "", 22, new Color(0.3f, 0.8f, 0.1f), new Vector2(430, -60), font);
         _enemyElementText = CreateText("EnemyElementText", "", 22, new Color(0.8f, 0.9f, 1f), new Vector2(430, -100), font);
+        _enemyNameText = CreateText("EnemyNameText", "", 20, new Color(0.9f, 0.5f, 0.3f), new Vector2(430, -140), font);
         _enemyIntentObj = CreateIntentDisplay(font);
 
         _drawPileText = CreateText("DrawPileText", "抽牌堆: 0", 18, Color.white, new Vector2(-720, -280), font);
@@ -505,6 +507,15 @@ public class BattleUI : MonoBehaviour
                     text = string.IsNullOrEmpty(text) ? "深度中毒" : text + " / 深度中毒";
             }
             _enemyElementText.text = text;
+        }
+
+        // 更新敌人名称
+        if (_enemyNameText != null && _battleManager?.EnemyObject != null)
+        {
+            var controller = _battleManager.EnemyObject.GetComponent<EnemyController>();
+            _enemyNameText.text = controller != null && controller.enemyData != null
+                ? controller.enemyData.enemyName
+                : "";
         }
 
         // 更新敌人意图显示（文字由 LateUpdate 每帧更新位置）

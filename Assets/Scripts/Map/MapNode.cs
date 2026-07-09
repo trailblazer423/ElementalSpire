@@ -53,6 +53,7 @@ public class MapNode : MonoBehaviour
         // �ѵ�ǰ�ڵ���Ϣ����ȫ�ֹ�����������ս����
         GameManager.Instance.currentNodeId = NodeId;
         GameManager.Instance.currentNodeType = NodeType;
+        ChallengeRunTracker.EnsureExists().MarkProgress(GameManager.Instance.currentFloor, NodeId);
         // ��תս������
         UnityEngine.SceneManagement.SceneManager.LoadScene("BattleScene");
     }

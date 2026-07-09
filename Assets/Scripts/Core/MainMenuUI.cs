@@ -17,11 +17,14 @@ public class MainMenuUI : MonoBehaviour
         if (GameManager.Instance != null)
         {
             GameManager.Instance.currentFloor = 1;
+            GameManager.Instance.currentNodeId = 0;
+            GameManager.Instance.currentNodeType = string.Empty;
             GameManager.Instance.isBattleWin = false;
             GameManager.Instance.playerHp = GameManager.Instance.playerMaxHp;
             GameManager.Instance.playerCardBag.Clear();
         }
 
+        ChallengeRunTracker.EnsureExists().StartRun();
         SceneManager.LoadScene("MapScene");
     }
 }

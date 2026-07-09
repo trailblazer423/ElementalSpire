@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ef62f7d66b02a024fa9bd8dfdbe986d9, type: 3}
-  m_Name: "\u672C\u8D28\u8C6AData"
+  m_Name: "\u81EA\u5728\u6781\u610F\u8C6AData"
   m_EditorClassIdentifier: 
-  enemyName: "\u672C\u8D28\u8C6A"
-  maxHP: 18
-  baseAttack: 5
-  baseDefend: 10
+  enemyName: "\u81EA\u5728\u6781\u610F\u8C6A"
+  maxHP: 16
+  baseAttack: 6
+  baseDefend: 4
   enemyType: 0
-  attackChance: 0.4
+  attackChance: 0.55

@@ -1,22 +1,24 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class EnterMenuButton : MonoBehaviour
 {
-    [Header("目标场景设置")]
-    [SerializeField] private string targetSceneName = "A"; // 改为你的A场景名称
-
-    // 按钮点击调用的方法
-    public void LoadTargetScene()
+    // Start is called before the first frame update
+    void Start()
     {
-        // 检查场景是否在Build Settings中，防止报错
-        if (Application.CanStreamedLevelBeLoaded(targetSceneName))
-        {
-            SceneManager.LoadScene(targetSceneName);
-        }
-        else
-        {
-            Debug.LogError("场景 " + targetSceneName + " 未添加到Build Settings中！");
-        }
+
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+
+    }
+
+    public void Jump()
+    {
+        SceneManager.LoadScene("MainMenuScene");
     }
 }

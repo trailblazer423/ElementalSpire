@@ -59,6 +59,9 @@ public class GameManager : MonoBehaviour
     /// <summary>本局是否已完成开局初始化（选元素+发牌+开局选牌）</summary>
     public bool gameInitialized = false;
 
+    private readonly HashSet<int> clearedNodeIds = new HashSet<int>();
+    private readonly HashSet<int> unlockedNodeIds = new HashSet<int>();
+
 
     private void Awake()
     {
@@ -90,6 +93,9 @@ public class GameManager : MonoBehaviour
         playerCardBag.Clear();
         // 战斗牌堆初始化清空，战斗开始时再洗入
         currentFloor = 1;
+        currentNodeId = 0;
+        currentNodeType = string.Empty;
+        isBattleWin = false;
         drawPile.Clear();
         handCards.Clear();
         discardPile.Clear();
@@ -97,6 +103,8 @@ public class GameManager : MonoBehaviour
         gameInitialized = false;
         mainElementA = ElementType.None;
         mainElementB = ElementType.None;
+        clearedNodeIds.Clear();
+        unlockedNodeIds.Clear();
 
     }
 
@@ -134,6 +142,64 @@ public class GameManager : MonoBehaviour
         isBattleWin = false;
         return true;
     }
+
+    /// <summary>
+    /// 重置一局挑战的运行时数据，主菜单重新开始时调用。
+    /// </summary>
+    public void ResetRunState()
+    {
+        playerHp = playerMaxHp;
+        playerBlock = 0;
+        currentEnergy = maxEnergy;
+        currentFloor = 1;
+        currentNodeId = 0;
+        currentNodeType = string.Empty;
+        isBattleWin = false;
+        gameInitialized = false;
+        mainElementA = ElementType.None;
+        mainElementB = ElementType.None;
+
+        playerCardBag.Clear();
+        drawPile.Clear();
+        handCards.Clear();
+        discardPile.Clear();
+        clearedNodeIds.Clear();
+        unlockedNodeIds.Clear();
+    }
+
+    /// <summary>
+    /// 进入新层时清空本层地图节点进度。
+    /// </summary>
+    public void ResetMapProgressForCurrentFloor()
+    {
+        currentNodeId = 0;
+        currentNodeType = string.Empty;
+        clearedNodeIds.Clear();
+        unlockedNodeIds.Clear();
+    }
+
+    public void MarkNodeCleared(int nodeId)
+    {
+        if (nodeId > 0)
+            clearedNodeIds.Add(nodeId);
+    }
+
+    public void MarkNodeUnlocked(int nodeId)
+    {
+        if (nodeId > 0)
+            unlockedNodeIds.Add(nodeId);
+    }
+
+    public bool IsNodeCleared(int nodeId)
+    {
+        return clearedNodeIds.Contains(nodeId);
+    }
+
+    public bool IsNodeUnlocked(int nodeId)
+    {
+        return unlockedNodeIds.Contains(nodeId);
+    }
+
     /// <summary>
     /// 将一张卡牌加入玩家永久牌库（存cardId）
     /// </summary>

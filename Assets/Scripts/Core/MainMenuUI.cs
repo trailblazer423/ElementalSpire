@@ -16,12 +16,7 @@ public class MainMenuUI : MonoBehaviour
         // 每次开始新游戏时重置初始数据
         if (GameManager.Instance != null)
         {
-            GameManager.Instance.currentFloor = 1;
-            GameManager.Instance.currentNodeId = 0;
-            GameManager.Instance.currentNodeType = string.Empty;
-            GameManager.Instance.isBattleWin = false;
-            GameManager.Instance.playerHp = GameManager.Instance.playerMaxHp;
-            GameManager.Instance.playerCardBag.Clear();
+            GameManager.Instance.ResetRunState();
         }
 
         ChallengeRunTracker.EnsureExists().StartRun();

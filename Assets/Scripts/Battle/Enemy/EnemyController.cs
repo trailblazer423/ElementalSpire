@@ -7,14 +7,17 @@ public enum EnemyIntent
     Charge,
     Heal,
     Buff,
+    Debuff,
     None
 }
+
 
 public class EnemyController : MonoBehaviour
 {
     [Header("敌人数据")]
     public EnemyData enemyData;
-
+    protected PlayerState _playerState;
+    protected currentEnergy _playerEnergy;
     [Header("意图")]
     public EnemyIntent currentIntent = EnemyIntent.None;
     public int intentValue = 0;
@@ -45,12 +48,13 @@ public class EnemyController : MonoBehaviour
         Debug.Log($"[EnemyController] 敌人数据已注入：{data.enemyName} (HP:{data.maxHP})");
     }
 
-    void Start()
+    protected virtual void Start()
     {
         _enemyHP = GetComponent<enemyHP>();
         _enemyBlock = GetComponent<enemyBlock>();
         _enemyState = GetComponent<EnemyState>();
         _playerHP = GameObject.Find("Player")?.GetComponent<playerHP>();
+        _playerEnergy = GameObject.Find("Player")?.GetComponent<currentEnergy>();
 
         if (enemyData != null)
         {
@@ -61,6 +65,7 @@ public class EnemyController : MonoBehaviour
                 _enemyHP.CurrentHP = enemyData.maxHP;
             DecideNextIntent();
         }
+        _playerState = GameObject.Find("Player")?.GetComponent<PlayerState>();
     }
 
     /// <summary>
@@ -168,6 +173,14 @@ public class EnemyController : MonoBehaviour
         Debug.Log($"{enemyData.enemyName} 获得强化！");
     }
 
+    public virtual void Debuff()
+    {
+        if (_playerHP != null)
+        {
+            _playerHP.Weakness += intentValue;
+            Debug.Log($"{enemyData.enemyName} 给玩家施加了 {intentValue} 层虚弱，当前虚弱 {_playerHP.Weakness}");
+        }
+    }
     public EnemyIntent GetCurrentIntent()
     {
         return currentIntent;

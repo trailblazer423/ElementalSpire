@@ -3,7 +3,7 @@
 public class playerHP : MonoBehaviour
 {
     private int _currentHP;
-
+    public int Weakness = 0;
     private playerMaxHP _maxHPComponent;
     private playerBlock _blockComponent;
 
@@ -50,5 +50,9 @@ public class playerHP : MonoBehaviour
     public int MaxHP
     {
         get { return _maxHPComponent != null ? _maxHPComponent.maxHP : 20; }
+    }
+    public int GetWeakness()
+    {
+        return Weakness;
     }
 }

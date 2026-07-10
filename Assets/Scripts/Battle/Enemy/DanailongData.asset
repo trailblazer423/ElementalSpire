@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ef62f7d66b02a024fa9bd8dfdbe986d9, type: 3}
-  m_Name: Slime-Data
+  m_Name: DanailongData
   m_EditorClassIdentifier: 
-  enemyName: "\u53F2\u83B1\u59C6"
-  maxHP: 40
-  baseAttack: 6
-  baseDefend: 5
+  enemyName: "\u5927\u5976\u9F99"
+  maxHP: 45
+  baseAttack: 0
+  baseDefend: 0
   enemyType: 0
-  attackChance: 0.6
+  attackChance: 0

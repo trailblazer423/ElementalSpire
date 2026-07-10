@@ -252,21 +252,20 @@ public class CardEffectResolver
     private ElementReactionResult DealAttackDamage(int baseDamage, int hitCount, ElementType element, string source)
     {
         int powerBonus = playerState != null ? playerState.power : 0;
+        int weakness = playerState != null ? playerState.Weakness : 0;   // ← 加这一行
         ElementReactionResult lastReaction = new ElementReactionResult();
 
         for (int i = 0; i < hitCount; i++)
         {
-            // 每段攻击独立结算元素附着/反应
             lastReaction = ResolveElementAttachment(element, source);
 
-            int finalDamage = Mathf.Max(0, Mathf.FloorToInt((baseDamage + powerBonus) * lastReaction.DamageMultiplier));
+            int finalDamage = Mathf.Max(0, Mathf.FloorToInt((baseDamage + powerBonus - weakness) * lastReaction.DamageMultiplier));  // ← 减掉 weakness
             battleManager?.DealDamageToEnemy(finalDamage);
             battleManager?.LogBattleEvent($"{source} 第{i + 1}段：造成 {finalDamage} 点伤害。");
         }
 
         return lastReaction;
     }
-
     private ElementReactionResult ResolveElementAttachment(ElementType elementType, string source)
     {
         ElementReactionResult reaction = elementReactionResolver.ResolveElementAttachment(elementType, source);

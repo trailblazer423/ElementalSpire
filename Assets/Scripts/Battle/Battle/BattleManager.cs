@@ -337,10 +337,11 @@ public class BattleManager : MonoBehaviour
             yield break;
         }
 
+        // ===== 1. Boss 行动 =====
         if (_enemyController != null)
         {
             _enemyController.ExecuteTurn();
-            LogBattleEvent($"敌人执行 {_enemyController.GetCurrentIntent()}（数值 {_enemyController.GetIntentValue()}）。");
+            LogBattleEvent($"Boss 执行 {_enemyController.GetCurrentIntent()}（数值 {_enemyController.GetIntentValue()}）。");
         }
         else if (_enemyAI != null)
         {
@@ -355,6 +356,31 @@ public class BattleManager : MonoBehaviour
 
         yield return new WaitForSeconds(0.3f);
 
+        // ===== 2. 所有植物行动（如果是 Boss 战） =====
+        FengKuangDaiFu boss = FindObjectOfType<FengKuangDaiFu>();
+        if (boss != null)
+        {
+            List<GameObject> plants = boss.GetPlants();
+            if (plants != null && plants.Count > 0)
+            {
+                LogBattleEvent($"植物行动开始，共 {plants.Count} 个植物。");
+                foreach (GameObject plant in plants)
+                {
+                    if (plant != null)
+                    {
+                        EnemyController plantController = plant.GetComponent<EnemyController>();
+                        if (plantController != null)
+                        {
+                            plantController.ExecuteTurn();
+                            LogBattleEvent($"植物执行 {plantController.GetCurrentIntent()}（数值 {plantController.GetIntentValue()}）。");
+                            yield return new WaitForSeconds(0.2f);
+                        }
+                    }
+                }
+            }
+        }
+
+        // ===== 3. 检查战斗状态 =====
         OnBattleInfoChanged?.Invoke();
 
         if (_playerHP.CurrentHP <= 0)
@@ -603,6 +629,17 @@ public class BattleManager : MonoBehaviour
         Debug.Log("[BattleManager] GameManager 不存在，已自动创建（直接测试 BattleScene 时的兜底）");
     }
 
+    public void DealDamageToTarget(GameObject target, int damage)
+    {
+        if (target == null) return;
+
+        enemyHP targetHp = target.GetComponent<enemyHP>();
+        if (targetHp != null)
+        {
+            targetHp.TakeDamage(damage);
+            Debug.Log($"对 {target.name} 造成 {damage} 点伤害");
+        }
+    }
 #if UNITY_EDITOR
     void OnDrawGizmosSelected()
     {

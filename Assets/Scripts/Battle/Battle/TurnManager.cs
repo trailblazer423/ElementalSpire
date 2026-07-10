@@ -187,6 +187,28 @@ public class TurnManager : MonoBehaviour
     private IEnumerator ExecutePhase_PoisonTickPhase()
     {
         SetPhase(BattlePhase.PoisonTickPhase);
+
+        // ===== 玩家中毒结算 =====
+        if (_playerState != null)
+        {
+            int poisonDamage = _playerState.TickPoison();
+            if (poisonDamage > 0)
+            {
+                // 获取玩家 HP 组件
+                playerHP playerHp = FindObjectOfType<playerHP>();
+                if (playerHp != null)
+                {
+                    playerHp.TakeDamage(poisonDamage);
+                    Debug.Log($"💀 中毒！玩家受到 {poisonDamage} 点伤害，剩余中毒 {_playerState.PoisonStacks}");
+                }
+                else
+                {
+                    Debug.LogWarning("中毒结算：找不到 playerHP 组件！");
+                }
+            }
+        }
+
+        // ===== 原有逻辑：敌人中毒结算（保留） =====
         OnPoisonTickPhase?.Invoke();
         Debug.Log("[TurnManager] 中毒结算阶段");
         yield return new WaitForSeconds(_phaseDelay * 0.3f);

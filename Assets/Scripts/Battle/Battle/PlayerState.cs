@@ -23,7 +23,13 @@ public class PlayerState : MonoBehaviour
     private bool _waterResonanceUsedThisTurn = false;
     private bool _reactionThisTurn = false;
 
+
+    private int _poisonStacks = 0;   // 中毒层数
+    public int PoisonStacks => _poisonStacks;
+
     public int power => _power;
+    private int _weakness = 0;   // 虚弱层数
+    public int Weakness => _weakness;
     public int WaterSource => _waterSource;
     public int DemonFormPowerPerTurn => _demonFormPowerPerTurn;
     public bool HellionActive => _hellionActive;
@@ -41,6 +47,31 @@ public class PlayerState : MonoBehaviour
             _power += amount;
     }
 
+    /// <summary>
+    /// 增加中毒层数
+    /// </summary>
+    public void AddPoison(int amount)
+    {
+        if (amount > 0)
+            _poisonStacks += amount;
+    }
+
+    /// <summary>
+    /// 每回合结算中毒，返回造成伤害，然后层数减1
+    /// </summary>
+    public int TickPoison()
+    {
+        if (_poisonStacks <= 0) return 0;
+
+        int damage = _poisonStacks;
+        _poisonStacks = Mathf.Max(0, _poisonStacks - 1);
+        return damage;
+    }
+    public void AddWeakness(int amount)
+    {
+        if (amount > 0)
+            _weakness = Mathf.Min(_weakness + amount, 5);
+    }
     public void RemovePower(int amount)
     {
         if (amount > 0)

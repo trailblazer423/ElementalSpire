@@ -134,7 +134,6 @@ GameObject:
   - component: {fileID: 34168966}
   - component: {fileID: 34168965}
   - component: {fileID: 34168964}
-  - component: {fileID: 34168967}
   m_Layer: 0
   m_Name: WaterButton
   m_TagString: Untagged
@@ -244,18 +243,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 34168962}
   m_CullTransparentMesh: 1
---- !u!114 &34168967
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 34168962}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0f429fdd36106354e98573b92aee5fe8, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &115406742
 GameObject:
   m_ObjectHideFlags: 0
@@ -268,7 +255,6 @@ GameObject:
   - component: {fileID: 115406746}
   - component: {fileID: 115406745}
   - component: {fileID: 115406744}
-  - component: {fileID: 115406747}
   m_Layer: 0
   m_Name: FireButton
   m_TagString: Untagged
@@ -378,18 +364,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 115406742}
   m_CullTransparentMesh: 1
---- !u!114 &115406747
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 115406742}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ea89e6d74b2c95d48bd65c0cafc70e55, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &288657761
 GameObject:
   m_ObjectHideFlags: 0
@@ -1289,11 +1263,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   fireButton: {fileID: 115406744}
-  waterButton: {fileID: 34168964}
   poisonButton: {fileID: 1645091021}
-  continueButton: {fileID: 2103008952}
-  selectedColor: {r: 0.06918234, g: 0.062438145, b: 0.062438145, a: 0.9843137}
-  normalColor: {r: 1, g: 1, b: 1, a: 1}
+  waterButton: {fileID: 34168964}
+  confirmButton: {fileID: 2103008952}
 --- !u!1 &1645091019
 GameObject:
   m_ObjectHideFlags: 0
@@ -1306,7 +1278,6 @@ GameObject:
   - component: {fileID: 1645091023}
   - component: {fileID: 1645091022}
   - component: {fileID: 1645091021}
-  - component: {fileID: 1645091024}
   m_Layer: 0
   m_Name: PoisonButton
   m_TagString: Untagged
@@ -1416,18 +1387,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1645091019}
   m_CullTransparentMesh: 1
---- !u!114 &1645091024
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1645091019}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5bf89ccc2bef9e14da9a1b68df542e39, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &1981777958
 GameObject:
   m_ObjectHideFlags: 0

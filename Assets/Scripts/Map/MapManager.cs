@@ -43,56 +43,7 @@ public class MapManager : MonoBehaviour
         SceneManager.LoadScene("MainMenuScene");
     }
 
-    /// <summary>
-    /// 游戏开局初始化流程：选元素 → 发10张基础牌 → 3次开局选牌 → 解锁节点1
-    /// </summary>
-    private IEnumerator GameStartFlow()
-    {
-        Debug.Log("[MapManager] ===== 初始化流程开始 =====");
-
-        // 1. 直接赋值双元素，完全去掉UI等待
-        ElementType eleA = ElementType.Fire;
-        ElementType eleB = ElementType.Poison;
-        GameManager.Instance.mainElementA = eleA;
-        GameManager.Instance.mainElementB = eleB;
-        Debug.Log($"[MapManager] 双元素已设置：{eleA} + {eleB}");
-
-        // 2. 发放10张初始基础牌
-        var starterCards = CardDeckLibrary.GetStarterDeck();
-        foreach (var card in starterCards)
-        {
-            GameManager.Instance.AddCardToBag(card.cardId);
-        }
-        Debug.Log($"[MapManager] 初始牌发放完成，当前牌库数量：{GameManager.Instance.playerCardBag.Count}");
-
-        // 3. 执行3次开局选牌
-        Debug.Log("[MapManager] 开始第1次开局选牌（偏元素A）");
-        yield return StartCoroutine(DoDraftSelect(
-            CardDeckLibrary.GetInitialDraftPool(eleA, eleA),
-            DraftPhase.Start));
-
-        Debug.Log("[MapManager] 开始第2次开局选牌（偏元素B）");
-        yield return StartCoroutine(DoDraftSelect(
-            CardDeckLibrary.GetInitialDraftPool(eleB, eleB),
-            DraftPhase.Start));
-
-        Debug.Log("[MapManager] 开始第3次开局选牌（双元素混合）");
-        yield return StartCoroutine(DoDraftSelect(
-            CardDeckLibrary.GetInitialDraftPool(eleA, eleB),
-            DraftPhase.Start));
-
-        Debug.Log("[MapManager] 3次选牌全部完成");
-
-        // 4. 解锁第1个节点
-        UnlockNextNodes(0);
-        Debug.Log("[MapManager] 将执行进入节点1");
-
-        // 5. 标记初始化完成，刷新所有节点视图
-        GameManager.Instance.gameInitialized = true;
-        RefreshAllNodes();
-
-        Debug.Log($"[MapManager] ===== 初始化流程结束 ===== 玩家牌库数量：{GameManager.Instance.playerCardBag.Count}");
-    }
+    
 
     /// <summary>
     /// 执行一次选牌（开局选牌/战斗奖励）
@@ -185,14 +136,22 @@ public class MapManager : MonoBehaviour
         // 先打印状态，确认流程是否执行
         Debug.Log($"[MapManager] 地图加载完成：gameInitialized={GameManager.Instance.gameInitialized}");
 
-        if (!GameManager.Instance.gameInitialized)
-        {
-            Debug.Log("[MapManager] 进入开局初始化流程");
-            StartCoroutine(GameStartFlow());
-            return; // 初始化完成前不执行后续逻辑
-        }
-
+       
         Debug.Log($"[MapManager] 地图加载：isBattleWin={GameManager.Instance?.isBattleWin}, currentFloor={GameManager.Instance?.currentFloor}, AllMapNodes数量={(AllMapNodes != null ? AllMapNodes.Length : 0)}");
+
+        // ========== 新增：首次进入地图时初始化节点 ==========
+        bool isFirstEnter = !GameManager.Instance.gameInitialized && !GameManager.Instance.isBattleWin;
+        if (isFirstEnter)
+        {
+            Debug.Log("[MapManager] 新游戏首次进入地图，初始化首个节点");
+            // 初始化当前楼层进度，解锁首个节点
+            GameManager.Instance.ResetMapProgressForCurrentFloor();
+            ResetNodesForNewFloor();
+            GameManager.Instance.gameInitialized = true; // 标记游戏已初始化，避免重复执行
+        }
+        // ==================================================
+
+
 
         if (GameManager.Instance != null && GameManager.Instance.isBattleWin)
         {

@@ -19,4 +19,10 @@ public class EnterMenuButton : MonoBehaviour
             Debug.LogError("场景 " + targetSceneName + " 未添加到Build Settings中！");
         }
     }
+
+    // 兼容 UI 版 RankingScene 中已经序列化的关闭按钮事件。
+    public void Jump()
+    {
+        SceneManager.LoadScene("MainMenuScene");
+    }
 }

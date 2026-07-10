@@ -8,6 +8,8 @@ using ElementalSpire.Cards;
 /// </summary>
 public class CardView : MonoBehaviour, IPointerClickHandler
 {
+    private static Font _compatibleFont;
+
     private CardInstance _cardInstance;
     private CardData _cardData;
 
@@ -25,6 +27,62 @@ public class CardView : MonoBehaviour, IPointerClickHandler
     private static readonly Color WaterColor = new Color(0.2f, 0.5f, 0.9f);
     private static readonly Color ColorlessColor = new Color(0.6f, 0.6f, 0.6f);
 
+    /// <summary>
+    /// 获取能显示中文的动态字体。战斗手牌和奖励卡共用这一套字体选择逻辑，
+    /// 避免 LegacyRuntime/Arial 把中文显示成方框。
+    /// </summary>
+    public static Font GetCompatibleFont()
+    {
+        if (_compatibleFont != null)
+            return _compatibleFont;
+
+        string[] preferredFonts =
+        {
+            "Microsoft YaHei UI",
+            "Microsoft YaHei",
+            "SimHei",
+            "DengXian",
+            "PingFang SC",
+            "Heiti SC",
+            "Noto Sans CJK SC",
+            "WenQuanYi Micro Hei",
+            "Arial Unicode MS"
+        };
+
+        try
+        {
+            string[] installedFonts = Font.GetOSInstalledFontNames();
+            foreach (string preferredFont in preferredFonts)
+            {
+                foreach (string installedFont in installedFonts)
+                {
+                    if (!string.Equals(preferredFont, installedFont,
+                            System.StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    _compatibleFont = Font.CreateDynamicFontFromOSFont(installedFont, 24);
+                    if (_compatibleFont != null)
+                        return _compatibleFont;
+                }
+            }
+        }
+        catch (System.Exception exception)
+        {
+            Debug.LogWarning($"[CardView] 创建中文系统字体失败：{exception.Message}");
+        }
+
+        try
+        {
+            _compatibleFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        }
+        catch
+        {
+            _compatibleFont = null;
+        }
+
+        return _compatibleFont;
+    }
+
     public static CardView Create(Transform parent, CardInstance cardInstance, Font font, System.Action<CardInstance, ElementType> onClickCallback)
     {
         CardData cardData = cardInstance?.GetCardData();
@@ -35,7 +93,7 @@ public class CardView : MonoBehaviour, IPointerClickHandler
         cardView._cardInstance = cardInstance;
         cardView._cardData = cardData;
         cardView._onClickCallback = onClickCallback;
-        cardView.BuildUI(font);
+        cardView.BuildUI(font != null ? font : GetCompatibleFont());
         return cardView;
     }
 

@@ -20,4 +20,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/CardDraftScene.unity
     guid: 8eae9e7a1b4318346ab636d9a1560736
+  - enabled: 1
+    path: Assets/Scenes/RankingScene.unity
+    guid: 070a973e52bc47a7a9a025834e29afa8
   m_configObjects: {}

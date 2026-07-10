@@ -2,7 +2,6 @@ using TMPro;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Events;
 using UnityEngine.UI;
 using ElementalSpire.Cards;
 using System.Linq;
@@ -17,11 +16,15 @@ public class CardDraftManager : MonoBehaviour
     public TextMeshProUGUI progressText;// 显示“第1/3次”
 
     private List<CardData> _currentOptions;
+    private readonly List<CardView> _cardViews = new List<CardView>();
+    private TMP_FontAsset _chineseTmpFont;
     private bool _isSelected;
 
     void Start()
     {
         ResolveUiReferences();
+        PrepareCardSlots();
+        ConfigureChineseLabels();
 
         if (GameManager.Instance == null)
         {
@@ -47,6 +50,8 @@ public class CardDraftManager : MonoBehaviour
     {
         if (skipButton != null)
             skipButton.onClick.RemoveListener(OnSkip);
+
+        ClearCardViews();
     }
 
     // 开局执行三次选牌；战斗胜利后执行一次奖励选牌。
@@ -101,11 +106,12 @@ public class CardDraftManager : MonoBehaviour
             yield break;
         }
 
-        RefreshCardButtons();
+        SetDraftControlsInteractable(true);
+        RefreshCardViews();
 
-        UnityAction firstAction = () => SelectCard(0);
-        UnityAction secondAction = () => SelectCard(1);
-        UnityAction thirdAction = () => SelectCard(2);
+        UnityEngine.Events.UnityAction firstAction = () => SelectCard(0);
+        UnityEngine.Events.UnityAction secondAction = () => SelectCard(1);
+        UnityEngine.Events.UnityAction thirdAction = () => SelectCard(2);
         cardButton1.onClick.AddListener(firstAction);
         cardButton2.onClick.AddListener(secondAction);
         cardButton3.onClick.AddListener(thirdAction);
@@ -115,57 +121,157 @@ public class CardDraftManager : MonoBehaviour
         cardButton1.onClick.RemoveListener(firstAction);
         cardButton2.onClick.RemoveListener(secondAction);
         cardButton3.onClick.RemoveListener(thirdAction);
+
+        ClearCardViews();
     }
 
     // 点击某张卡牌
     void SelectCard(int index)
     {
-        if (index < 0 || index >= _currentOptions.Count) return;
+        if (_isSelected || index < 0 || index >= _currentOptions.Count) return;
         CardData card = _currentOptions[index];
         GameManager.Instance.AddCardToBag(card.cardId);
-        _isSelected = true;
+        FinishCurrentDraft();
     }
 
     // 点击跳过
     void OnSkip()
     {
-        _isSelected = true;
+        if (_isSelected) return;
+        FinishCurrentDraft();
     }
 
-    // 更新三个按钮的卡牌文字显示
-    void RefreshCardButtons()
+    // 使用战斗中的 CardView 绘制奖励卡；三个旧 Button 只保留为透明点击锚点。
+    void RefreshCardViews()
     {
-        RefreshCardButton(cardButton1, 0);
-        RefreshCardButton(cardButton2, 1);
-        RefreshCardButton(cardButton3, 2);
-    }
+        ClearCardViews();
 
-    private void RefreshCardButton(Button button, int index)
-    {
-        bool hasCard = index >= 0 && index < _currentOptions.Count;
-        button.interactable = hasCard;
+        Button[] slots = { cardButton1, cardButton2, cardButton3 };
+        Font cardFont = CardView.GetCompatibleFont();
 
-        TextMeshProUGUI tmpText = button.GetComponentInChildren<TextMeshProUGUI>(true);
-        if (tmpText != null)
+        for (int index = 0; index < slots.Length; index++)
         {
-            tmpText.text = hasCard ? FormatCard(_currentOptions[index]) : "";
+            bool hasCard = index < _currentOptions.Count;
+            slots[index].gameObject.SetActive(hasCard);
+            if (!hasCard)
+                continue;
+
+            CardInstance cardInstance = new CardInstance(_currentOptions[index].cardId);
+            CardView cardView = CardView.Create(slots[index].transform, cardInstance, cardFont, null);
+            RectTransform cardRect = cardView.GetComponent<RectTransform>();
+            cardRect.anchorMin = new Vector2(0.5f, 0.5f);
+            cardRect.anchorMax = new Vector2(0.5f, 0.5f);
+            cardRect.pivot = new Vector2(0.5f, 0.5f);
+            cardRect.anchoredPosition = Vector2.zero;
+            cardRect.localScale = Vector3.one * 1.25f;
+
+            CanvasGroup canvasGroup = cardView.gameObject.AddComponent<CanvasGroup>();
+            canvasGroup.interactable = false;
+            canvasGroup.blocksRaycasts = false;
+
+            _cardViews.Add(cardView);
+        }
+    }
+
+    private void PrepareCardSlots()
+    {
+        foreach (Button button in new[] { cardButton1, cardButton2, cardButton3 })
+        {
+            if (button == null)
+                continue;
+
+            Image image = button.GetComponent<Image>();
+            if (image != null)
+            {
+                Color color = image.color;
+                color.a = 0f;
+                image.color = color;
+                image.raycastTarget = true;
+            }
+
+            foreach (TextMeshProUGUI text in button.GetComponentsInChildren<TextMeshProUGUI>(true))
+                text.gameObject.SetActive(false);
+
+            foreach (Text text in button.GetComponentsInChildren<Text>(true))
+                text.gameObject.SetActive(false);
+        }
+    }
+
+    private void ConfigureChineseLabels()
+    {
+        TextMeshProUGUI[] texts = FindObjectsOfType<TextMeshProUGUI>(true);
+        _chineseTmpFont = texts
+            .Select(text => text.font)
+            .FirstOrDefault(font => font != null && font.name.Contains("KTGB2312"));
+
+        ApplyChineseTmpFont(progressText);
+
+        if (skipButton == null)
             return;
+
+        TextMeshProUGUI skipTmp = skipButton.GetComponentInChildren<TextMeshProUGUI>(true);
+        if (skipTmp != null)
+        {
+            skipTmp.text = "跳过";
+            ApplyChineseTmpFont(skipTmp);
         }
 
-        Text legacyText = button.GetComponentInChildren<Text>(true);
-        if (legacyText != null)
-            legacyText.text = hasCard ? FormatCard(_currentOptions[index]) : "";
+        Text skipLegacy = skipButton.GetComponentInChildren<Text>(true);
+        if (skipLegacy != null)
+        {
+            skipLegacy.text = "跳过";
+            skipLegacy.font = CardView.GetCompatibleFont();
+        }
     }
 
-    private static string FormatCard(CardData card)
+    private void ApplyChineseTmpFont(TextMeshProUGUI text)
     {
-        return $"{card.cardName}\n费用 {card.cost}\n{card.description}";
+        if (text == null || _chineseTmpFont == null)
+            return;
+
+        text.font = _chineseTmpFont;
+        text.fontSharedMaterial = _chineseTmpFont.material;
+    }
+
+    private void FinishCurrentDraft()
+    {
+        _isSelected = true;
+        SetDraftControlsInteractable(false);
+    }
+
+    private void SetDraftControlsInteractable(bool interactable)
+    {
+        foreach (Button button in new[] { cardButton1, cardButton2, cardButton3 })
+        {
+            if (button != null)
+                button.interactable = interactable && button.gameObject.activeSelf;
+        }
+
+        if (skipButton != null)
+            skipButton.interactable = interactable;
+    }
+
+    private void ClearCardViews()
+    {
+        foreach (CardView cardView in _cardViews)
+        {
+            if (cardView == null)
+                continue;
+
+            cardView.gameObject.SetActive(false);
+            Destroy(cardView.gameObject);
+        }
+
+        _cardViews.Clear();
     }
 
     private void SetProgressText(string value)
     {
         if (progressText != null)
+        {
+            ApplyChineseTmpFont(progressText);
             progressText.text = value;
+        }
     }
 
     private DraftPhase GetRewardPhase()

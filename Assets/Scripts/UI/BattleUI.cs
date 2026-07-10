@@ -314,21 +314,7 @@ public class BattleUI : MonoBehaviour
 
     private Font GetFont()
     {
-        try
-        {
-            Font f = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            if (f != null) return f;
-        }
-        catch { }
-
-        try
-        {
-            Font f = Font.CreateDynamicFontFromOSFont("Arial", 24);
-            if (f != null) return f;
-        }
-        catch { }
-
-        return null;
+        return CardView.GetCompatibleFont();
     }
 
     private Text CreateText(string name, string text, int fontSize, Color color, Vector2 anchoredPos, Font font)

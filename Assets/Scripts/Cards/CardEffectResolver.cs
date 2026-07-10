@@ -335,7 +335,8 @@ public class CardEffectResolver
     {
         for (int i = 0; i < count && deckManager.handCards.Count > 0; i++)
         {
-            CardInstance cardInstance = deckManager.handCards[deckManager.handCards.Count - 1];
+            int randomIndex = UnityEngine.Random.Range(0, deckManager.handCards.Count);
+            CardInstance cardInstance = deckManager.handCards[randomIndex];
             CardData card = cardInstance.GetCardData();
             if (card == null)
                 continue;

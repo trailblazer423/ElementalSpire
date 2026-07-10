@@ -2,81 +2,122 @@ using TMPro;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 using ElementalSpire.Cards;
 using System.Linq;
 
 public class CardDraftManager : MonoBehaviour
 {
-    [Header("Ñ¡ÅÆUIÒıÓÃ")]
+    [Header("é€‰ç‰ŒUIå¼•ç”¨")]
     public Button cardButton1;
     public Button cardButton2;
     public Button cardButton3;
     public Button skipButton;
-    public TextMeshProUGUI progressText;// ÏÔÊ¾¡°µÚ1/3´Î¡±
+    public TextMeshProUGUI progressText;// æ˜¾ç¤ºâ€œç¬¬1/3æ¬¡â€
 
     private List<CardData> _currentOptions;
     private bool _isSelected;
 
     void Start()
     {
-        skipButton.onClick.AddListener(OnSkip);
+        ResolveUiReferences();
+
+        if (GameManager.Instance == null)
+        {
+            Debug.LogError("[CardDraftManager] GameManager ä¸å­˜åœ¨ï¼Œè¿”å›é€‰å…ƒç´ åœºæ™¯ã€‚");
+            UnityEngine.SceneManagement.SceneManager.LoadScene("ElementSelectScene");
+            return;
+        }
+
+        if (cardButton1 == null || cardButton2 == null || cardButton3 == null)
+        {
+            Debug.LogError("[CardDraftManager] ä¸‰ä¸ªé€‰ç‰ŒæŒ‰é’®æœªç»‘å®šï¼Œæ— æ³•å¼€å§‹é€‰ç‰Œã€‚");
+            enabled = false;
+            return;
+        }
+
+        if (skipButton != null)
+            skipButton.onClick.AddListener(OnSkip);
+
         StartCoroutine(DraftFlow());
     }
 
-    // ÍêÕûµÄ3´ÎÑ¡ÅÆÁ÷³Ì
+    void OnDestroy()
+    {
+        if (skipButton != null)
+            skipButton.onClick.RemoveListener(OnSkip);
+    }
+
+    // å¼€å±€æ‰§è¡Œä¸‰æ¬¡é€‰ç‰Œï¼›æˆ˜æ–—èƒœåˆ©åæ‰§è¡Œä¸€æ¬¡å¥–åŠ±é€‰ç‰Œã€‚
     IEnumerator DraftFlow()
     {
         ElementType eleA = GameManager.Instance.mainElementA;
         ElementType eleB = GameManager.Instance.mainElementB;
 
-        // µÚ1´Î£ºÆ«ÏòÔªËØA
-        progressText.text = "µÚ 1 / 3 ´ÎÑ¡ÅÆ";
-        yield return StartCoroutine(DoOneDraft(
-            CardDeckLibrary.GetInitialDraftPool(eleA, eleA)));
+        if (!GameManager.Instance.isInitialDraftDone)
+        {
+            SetProgressText("ç¬¬ 1 / 3 æ¬¡å¼€å±€é€‰ç‰Œ");
+            yield return StartCoroutine(DoOneDraft(
+                CardDeckLibrary.GetInitialDraftPool(eleA, eleA), DraftPhase.Start));
 
-        // µÚ2´Î£ºÆ«ÏòÔªËØB
-        progressText.text = "µÚ 2 / 3 ´ÎÑ¡ÅÆ";
-        yield return StartCoroutine(DoOneDraft(
-            CardDeckLibrary.GetInitialDraftPool(eleB, eleB)));
+            SetProgressText("ç¬¬ 2 / 3 æ¬¡å¼€å±€é€‰ç‰Œ");
+            yield return StartCoroutine(DoOneDraft(
+                CardDeckLibrary.GetInitialDraftPool(eleB, eleB), DraftPhase.Start));
 
-        // µÚ3´Î£ºË«ÔªËØ»ìºÏ
-        progressText.text = "µÚ 3 / 3 ´ÎÑ¡ÅÆ";
-        yield return StartCoroutine(DoOneDraft(
-            CardDeckLibrary.GetInitialDraftPool(eleA, eleB)));
+            SetProgressText("ç¬¬ 3 / 3 æ¬¡å¼€å±€é€‰ç‰Œ");
+            yield return StartCoroutine(DoOneDraft(
+                CardDeckLibrary.GetInitialDraftPool(eleA, eleB), DraftPhase.Start));
 
-        // È«²¿Ñ¡Íê£¬±ê¼Ç³õÊ¼»¯Íê³É£¬Ìø×ªµØÍ¼³¡¾°
-        GameManager.Instance.gameInitialized = true;
+            GameManager.Instance.isInitialDraftDone = true;
+        }
+        else
+        {
+            SetProgressText("æˆ˜æ–—å¥–åŠ±ï¼šä¸‰é€‰ä¸€");
+            IEnumerable<CardData> rewardPool = CardDeckLibrary
+                .GetBattleRewardPool(eleA, GameManager.Instance.currentFloor)
+                .Concat(CardDeckLibrary.GetBattleRewardPool(eleB, GameManager.Instance.currentFloor))
+                .GroupBy(card => card.cardId)
+                .Select(group => group.First());
+
+            yield return StartCoroutine(DoOneDraft(rewardPool, GetRewardPhase()));
+        }
+
+        // åœ°å›¾æ˜¯å¦åˆå§‹åŒ–ç”± MapManager å†³å®šï¼Œä¸èƒ½åœ¨è¿™é‡Œæå‰å†™ gameInitializedã€‚
         UnityEngine.SceneManagement.SceneManager.LoadScene("MapScene");
     }
 
-    // Ö´ĞĞµ¥´ÎÈıÑ¡Ò»
-    IEnumerator DoOneDraft(IEnumerable<CardData> fullPool)
+    // æ‰§è¡Œå•æ¬¡ä¸‰é€‰ä¸€
+    IEnumerator DoOneDraft(IEnumerable<CardData> fullPool, DraftPhase phase)
     {
         _isSelected = false;
 
-        // °´Ï¡ÓĞ¶ÈÈ¨ÖØËæ»ú³ö3ÕÅºòÑ¡ÅÆ£¨Ëã·¨ºÍÄãMapManagerÀïÍêÈ«Ò»Ñù£©
         _currentOptions = GetRandomCardsByRarity(
-            fullPool.ToList(), 3, GameManager.Instance.currentFloor, DraftPhase.Start);
+            fullPool.ToList(), 3, GameManager.Instance.currentFloor, phase);
 
-        // ¸üĞÂ3¸ö°´Å¥µÄ¿¨ÅÆÏÔÊ¾
+        if (_currentOptions.Count == 0)
+        {
+            Debug.LogWarning("[CardDraftManager] å½“å‰ç‰Œæ± æ²¡æœ‰å¯é€‰ç‰Œï¼Œç›´æ¥è¿”å›åœ°å›¾ã€‚");
+            yield break;
+        }
+
         RefreshCardButtons();
 
-        // °ó¶¨°´Å¥µã»÷ÊÂ¼ş
-        cardButton1.onClick.AddListener(() => { SelectCard(0); });
-        cardButton2.onClick.AddListener(() => { SelectCard(1); });
-        cardButton3.onClick.AddListener(() => { SelectCard(2); });
+        UnityAction firstAction = () => SelectCard(0);
+        UnityAction secondAction = () => SelectCard(1);
+        UnityAction thirdAction = () => SelectCard(2);
+        cardButton1.onClick.AddListener(firstAction);
+        cardButton2.onClick.AddListener(secondAction);
+        cardButton3.onClick.AddListener(thirdAction);
 
-        // µÈ´ıÍæ¼ÒÑ¡Ôñ»òÌø¹ı
         yield return new WaitUntil(() => _isSelected);
 
-        // ÒÆ³ı±¾´Î¼àÌı£¬±ÜÃâÏÂ´ÎÑ¡ÅÆÖØ¸´´¥·¢
-        cardButton1.onClick.RemoveAllListeners();
-        cardButton2.onClick.RemoveAllListeners();
-        cardButton3.onClick.RemoveAllListeners();
+        cardButton1.onClick.RemoveListener(firstAction);
+        cardButton2.onClick.RemoveListener(secondAction);
+        cardButton3.onClick.RemoveListener(thirdAction);
     }
 
-    // µã»÷Ä³ÕÅ¿¨ÅÆ
+    // ç‚¹å‡»æŸå¼ å¡ç‰Œ
     void SelectCard(int index)
     {
         if (index < 0 || index >= _currentOptions.Count) return;
@@ -85,25 +126,72 @@ public class CardDraftManager : MonoBehaviour
         _isSelected = true;
     }
 
-    // µã»÷Ìø¹ı
+    // ç‚¹å‡»è·³è¿‡
     void OnSkip()
     {
         _isSelected = true;
     }
 
-    // ¸üĞÂÈı¸ö°´Å¥µÄ¿¨ÅÆÎÄ×ÖÏÔÊ¾
+    // æ›´æ–°ä¸‰ä¸ªæŒ‰é’®çš„å¡ç‰Œæ–‡å­—æ˜¾ç¤º
     void RefreshCardButtons()
     {
-        TextMeshProUGUI t1 = cardButton1.GetComponentInChildren<TextMeshProUGUI>();
-        TextMeshProUGUI t2 = cardButton2.GetComponentInChildren<TextMeshProUGUI>();
-        TextMeshProUGUI t3 = cardButton3.GetComponentInChildren<TextMeshProUGUI>();
-
-        t1.text = _currentOptions.Count > 0 ? _currentOptions[0].cardName : "";
-        t2.text = _currentOptions.Count > 1 ? _currentOptions[1].cardName : "";
-        t3.text = _currentOptions.Count > 2 ? _currentOptions[2].cardName : "";
+        RefreshCardButton(cardButton1, 0);
+        RefreshCardButton(cardButton2, 1);
+        RefreshCardButton(cardButton3, 2);
     }
 
-    // ===== ÒÔÏÂÍêÈ«ÕÕ°áMapManagerµÄÏ¡ÓĞ¶ÈËæ»ú£¬²»ÓÃ¸Ä =====
+    private void RefreshCardButton(Button button, int index)
+    {
+        bool hasCard = index >= 0 && index < _currentOptions.Count;
+        button.interactable = hasCard;
+
+        TextMeshProUGUI tmpText = button.GetComponentInChildren<TextMeshProUGUI>(true);
+        if (tmpText != null)
+        {
+            tmpText.text = hasCard ? FormatCard(_currentOptions[index]) : "";
+            return;
+        }
+
+        Text legacyText = button.GetComponentInChildren<Text>(true);
+        if (legacyText != null)
+            legacyText.text = hasCard ? FormatCard(_currentOptions[index]) : "";
+    }
+
+    private static string FormatCard(CardData card)
+    {
+        return $"{card.cardName}\nè´¹ç”¨ {card.cost}\n{card.description}";
+    }
+
+    private void SetProgressText(string value)
+    {
+        if (progressText != null)
+            progressText.text = value;
+    }
+
+    private DraftPhase GetRewardPhase()
+    {
+        int nodeId = GameManager.Instance.currentNodeId;
+        if (nodeId <= 3) return DraftPhase.Battle1_3;
+        if (nodeId <= 7) return DraftPhase.Battle4_7;
+        return DraftPhase.Battle8_10;
+    }
+
+    private void ResolveUiReferences()
+    {
+        Button[] buttons = FindObjectsOfType<Button>(true);
+        cardButton1 = cardButton1 != null ? cardButton1 : buttons.FirstOrDefault(button => button.name == "CardButton1");
+        cardButton2 = cardButton2 != null ? cardButton2 : buttons.FirstOrDefault(button => button.name == "CardButton2");
+        cardButton3 = cardButton3 != null ? cardButton3 : buttons.FirstOrDefault(button => button.name == "CardButton3");
+        skipButton = skipButton != null ? skipButton : buttons.FirstOrDefault(button => button.name == "SkipButton");
+
+        if (progressText == null)
+        {
+            progressText = FindObjectsOfType<TextMeshProUGUI>(true)
+                .FirstOrDefault(text => text.gameObject.name == "ProgressText");
+        }
+    }
+
+    // ===== ä»¥ä¸‹å®Œå…¨ç…§æ¬MapManagerçš„ç¨€æœ‰åº¦éšæœºï¼Œä¸ç”¨æ”¹ =====
     private enum DraftPhase
     {
         Start,

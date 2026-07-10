@@ -1,5 +1,7 @@
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Serialization;
 using ElementalSpire.Cards;
 
 public class ElementSelectionManager : MonoBehaviour
@@ -8,6 +10,7 @@ public class ElementSelectionManager : MonoBehaviour
     public Button fireButton;
     public Button poisonButton;
     public Button waterButton;
+    [FormerlySerializedAs("continueButton")]
     public Button confirmButton;
 
     private ElementType _firstElement = ElementType.None;
@@ -15,6 +18,14 @@ public class ElementSelectionManager : MonoBehaviour
 
     void Start()
     {
+        ResolveButtonReferences();
+        if (fireButton == null || poisonButton == null || waterButton == null || confirmButton == null)
+        {
+            Debug.LogError("[ElementSelectionManager] 元素按钮或确认按钮未绑定，无法启动选元素流程。");
+            enabled = false;
+            return;
+        }
+
         // 给三个元素按钮绑定点击事件
         fireButton.onClick.AddListener(() => OnElementClick(ElementType.Fire));
         poisonButton.onClick.AddListener(() => OnElementClick(ElementType.Poison));
@@ -69,18 +80,50 @@ public class ElementSelectionManager : MonoBehaviour
     // 点击确认：发初始牌 + 跳转
     void OnConfirmClick()
     {
+        if (GameManager.Instance == null)
+        {
+            GameObject managerObject = new GameObject("GameManager");
+            managerObject.AddComponent<GameManager>();
+        }
+
         // 1. 把选中的双元素存入全局GameManager
         GameManager.Instance.mainElementA = _firstElement;
         GameManager.Instance.mainElementB = _secondElement;
 
         // 2. 发放10张初始无色基础牌
-        var starterCards = CardDeckLibrary.GetStarterDeck();
-        foreach (var card in starterCards)
+        if (GameManager.Instance.playerCardBag.Count == 0)
         {
-            GameManager.Instance.AddCardToBag(card.cardId);
+            var starterCards = CardDeckLibrary.GetStarterDeck();
+            foreach (var card in starterCards)
+            {
+                GameManager.Instance.AddCardToBag(card.cardId);
+            }
         }
+
+        GameManager.Instance.isInitialDraftDone = false;
+        GameManager.Instance.gameInitialized = false;
 
         // 3. 跳转到开局选牌场景
         UnityEngine.SceneManagement.SceneManager.LoadScene("CardDraftScene");
+    }
+
+    private void ResolveButtonReferences()
+    {
+        Button[] sceneButtons = FindObjectsOfType<Button>(true);
+        fireButton = fireButton != null ? fireButton : FindButton(sceneButtons, "FireButton");
+        poisonButton = poisonButton != null ? poisonButton : FindButton(sceneButtons, "PoisonButton");
+        waterButton = waterButton != null ? waterButton : FindButton(sceneButtons, "WaterButton");
+
+        if (confirmButton == null)
+        {
+            confirmButton = FindButton(sceneButtons, "ContinueButton")
+                ?? FindButton(sceneButtons, "确定")
+                ?? sceneButtons.FirstOrDefault(button => button.name.ToLowerInvariant().Contains("confirm"));
+        }
+    }
+
+    private static Button FindButton(Button[] buttons, string objectName)
+    {
+        return buttons.FirstOrDefault(button => button.gameObject.name == objectName);
     }
 }

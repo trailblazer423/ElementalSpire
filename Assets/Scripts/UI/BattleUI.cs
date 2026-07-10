@@ -549,7 +549,7 @@ public class BattleUI : MonoBehaviour
 
         if (_lastBattleResult == "win")
         {
-            SceneManager.LoadScene("MapScene");
+            SceneManager.LoadScene("CardDraftScene");
         }
         else
         {

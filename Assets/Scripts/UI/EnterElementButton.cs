@@ -1,24 +1,18 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class EnterElementButton : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
-
     public void Jump()
     {
+        GameManager gameManager = GameManager.Instance;
+        if (gameManager == null)
+        {
+            GameObject managerObject = new GameObject("GameManager");
+            gameManager = managerObject.AddComponent<GameManager>();
+        }
+
+        gameManager.ResetRunState();
         SceneManager.LoadScene("ElementSelectScene");
     }
 }

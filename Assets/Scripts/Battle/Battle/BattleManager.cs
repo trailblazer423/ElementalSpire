@@ -26,6 +26,7 @@ public class BattleManager : MonoBehaviour
     [Header("场景流转")]
     [SerializeField] private bool _returnToMapOnWin = false;
     [SerializeField] private string _mapSceneName = "MapScene";
+    [SerializeField] private string _rewardSceneName = "CardDraftScene";
     [SerializeField] private float _returnToMapDelay = 1.0f;
 
     private currentEnergy _playerEnergy;
@@ -509,6 +510,7 @@ public class BattleManager : MonoBehaviour
         }
 
         GameManager.Instance.isBattleWin = result == "win";
+        GameManager.Instance.lastBattleResult = result;
         Debug.Log($"[BattleManager] SyncGameManagerBattleResult: 已设置 isBattleWin={GameManager.Instance.isBattleWin}");
 
         if (_playerHP != null)
@@ -531,7 +533,7 @@ public class BattleManager : MonoBehaviour
     {
         _returningToMap = true;
         yield return new WaitForSeconds(_returnToMapDelay);
-        SceneManager.LoadScene(_mapSceneName);
+        SceneManager.LoadScene(_rewardSceneName);
     }
 
     public void LogBattleEvent(string message)

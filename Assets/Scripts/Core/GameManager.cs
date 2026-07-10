@@ -41,6 +41,8 @@ public class GameManager : MonoBehaviour
     public string currentNodeType;
     /// <summary>本次战斗是否胜利，战斗组赋值，地图组读取</summary>
     public bool isBattleWin;
+    /// <summary>上一场战斗结果：空字符串 / win / lose</summary>
+    public string lastBattleResult = string.Empty;
 
 
     
@@ -56,8 +58,10 @@ public class GameManager : MonoBehaviour
     public ElementType mainElementA;
     /// <summary>本局选中的主元素B</summary>
     public ElementType mainElementB;
-    /// <summary>本局是否已完成开局初始化（选元素+发牌+开局选牌）</summary>
+    /// <summary>本局地图节点是否已经完成首次初始化</summary>
     public bool gameInitialized = false;
+    /// <summary>本局是否已经完成开局选牌；用于区分开局选牌与战斗奖励选牌</summary>
+    public bool isInitialDraftDone = false;
 
     private readonly HashSet<int> clearedNodeIds = new HashSet<int>();
     private readonly HashSet<int> unlockedNodeIds = new HashSet<int>();
@@ -96,11 +100,13 @@ public class GameManager : MonoBehaviour
         currentNodeId = 0;
         currentNodeType = string.Empty;
         isBattleWin = false;
+        lastBattleResult = string.Empty;
         drawPile.Clear();
         handCards.Clear();
         discardPile.Clear();
 
         gameInitialized = false;
+        isInitialDraftDone = false;
         mainElementA = ElementType.None;
         mainElementB = ElementType.None;
         clearedNodeIds.Clear();
@@ -155,7 +161,9 @@ public class GameManager : MonoBehaviour
         currentNodeId = 0;
         currentNodeType = string.Empty;
         isBattleWin = false;
+        lastBattleResult = string.Empty;
         gameInitialized = false;
+        isInitialDraftDone = false;
         mainElementA = ElementType.None;
         mainElementB = ElementType.None;
 

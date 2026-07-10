@@ -7,6 +7,7 @@ using System.Linq;
 /// 全局游戏管理器，单例模式，跨场景不销毁
 /// 存放所有全局共享的玩家数据、关卡流转数据
 /// </summary>
+///
 public class GameManager : MonoBehaviour
 {
     // 全局单例
@@ -66,6 +67,20 @@ public class GameManager : MonoBehaviour
     private readonly HashSet<int> clearedNodeIds = new HashSet<int>();
     private readonly HashSet<int> unlockedNodeIds = new HashSet<int>();
 
+    /// <summary>
+    /// 选牌场景的工作模式
+    /// </summary>
+    public enum DraftMode
+    {
+        InitialDraft,    // 开局选牌
+        BattleReward,    // 战斗奖励选牌
+        EventReward,     // 事件奖励：选一张加入永久牌库
+        EventRemove      // 事件移除：选一张从永久牌库删除
+    }
+
+    [Header("选牌场景临时状态")]
+    public DraftMode currentDraftMode;
+    public bool pendingEventToClear = false; // 事件节点返回地图时结算用
 
     private void Awake()
     {
@@ -88,6 +103,10 @@ public class GameManager : MonoBehaviour
     /// </summary>
     private void InitDefaultData()
     {
+        currentDraftMode = DraftMode.InitialDraft;
+        pendingEventToClear = false;
+
+
         playerMaxHp = 100;
         playerHp = playerMaxHp;
         playerBlock = 0;
@@ -154,6 +173,10 @@ public class GameManager : MonoBehaviour
     /// </summary>
     public void ResetRunState()
     {
+
+        currentDraftMode = DraftMode.InitialDraft;
+        pendingEventToClear = false;
+
         playerHp = playerMaxHp;
         playerBlock = 0;
         currentEnergy = maxEnergy;

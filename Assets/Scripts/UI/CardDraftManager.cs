@@ -59,36 +59,69 @@ public class CardDraftManager : MonoBehaviour
     {
         ElementType eleA = GameManager.Instance.mainElementA;
         ElementType eleB = GameManager.Instance.mainElementB;
+        GameManager.DraftMode mode = GameManager.Instance.currentDraftMode;
 
-        if (!GameManager.Instance.isInitialDraftDone)
+        switch (mode)
         {
-            SetProgressText("第 1 / 3 次开局选牌");
-            yield return StartCoroutine(DoOneDraft(
-                CardDeckLibrary.GetInitialDraftPool(eleA, eleA), DraftPhase.Start));
+            // 1. 开局三次选牌（原逻辑不变）
+            case GameManager.DraftMode.InitialDraft:
+                if (!GameManager.Instance.isInitialDraftDone)
+                {
+                    SetProgressText("第 1 / 3 次开局选牌");
+                    yield return StartCoroutine(DoOneDraft(
+                        CardDeckLibrary.GetInitialDraftPool(eleA, eleA), DraftPhase.Start));
+                    SetProgressText("第 2 / 3 次开局选牌");
+                    yield return StartCoroutine(DoOneDraft(
+                        CardDeckLibrary.GetInitialDraftPool(eleB, eleB), DraftPhase.Start));
+                    SetProgressText("第 3 / 3 次开局选牌");
+                    yield return StartCoroutine(DoOneDraft(
+                        CardDeckLibrary.GetInitialDraftPool(eleA, eleB), DraftPhase.Start));
+                    GameManager.Instance.isInitialDraftDone = true;
+                }
+                break;
 
-            SetProgressText("第 2 / 3 次开局选牌");
-            yield return StartCoroutine(DoOneDraft(
-                CardDeckLibrary.GetInitialDraftPool(eleB, eleB), DraftPhase.Start));
+            // 2. 战斗奖励选牌（原逻辑不变）
+            case GameManager.DraftMode.BattleReward:
+                SetProgressText("战斗奖励：三选一");
+                IEnumerable<CardData> rewardPool = CardDeckLibrary
+                    .GetBattleRewardPool(eleA, GameManager.Instance.currentFloor)
+                    .Concat(CardDeckLibrary.GetBattleRewardPool(eleB, GameManager.Instance.currentFloor))
+                    .GroupBy(card => card.cardId)
+                    .Select(group => group.First());
+                yield return StartCoroutine(DoOneDraft(rewardPool, GetRewardPhase()));
+                break;
 
-            SetProgressText("第 3 / 3 次开局选牌");
-            yield return StartCoroutine(DoOneDraft(
-                CardDeckLibrary.GetInitialDraftPool(eleA, eleB), DraftPhase.Start));
+            // 3. 事件奖励选牌（新增）
+            case GameManager.DraftMode.EventReward:
+                SetProgressText("事件奖励：三选一");
+                IEnumerable<CardData> eventRewardPool = CardDeckLibrary
+                    .GetBattleRewardPool(eleA, GameManager.Instance.currentFloor)
+                    .Concat(CardDeckLibrary.GetBattleRewardPool(eleB, GameManager.Instance.currentFloor))
+                    .GroupBy(card => card.cardId)
+                    .Select(group => group.First());
+                yield return StartCoroutine(DoOneDraft(eventRewardPool, GetRewardPhase()));
+                break;
 
-            GameManager.Instance.isInitialDraftDone = true;
+            // 4. 事件移除选牌（新增）
+            case GameManager.DraftMode.EventRemove:
+                SetProgressText("选择要舍弃的卡牌");
+                // 从玩家牌库取出所有卡牌数据
+                List<CardData> playerCards = new List<CardData>();
+                foreach (string cardId in GameManager.Instance.playerCardBag)
+                {
+                    CardData card = CardDeckLibrary.GetCardDataById(cardId);
+                    if (card != null) playerCards.Add(card);
+                }
+                // 同卡去重，只显示不同的卡牌
+                playerCards = playerCards
+                    .GroupBy(c => c.cardId)
+                    .Select(g => g.First())
+                    .ToList();
+                yield return StartCoroutine(DoOneDraft(playerCards, DraftPhase.Battle1_3));
+                break;
         }
-        else
-        {
-            SetProgressText("战斗奖励：三选一");
-            IEnumerable<CardData> rewardPool = CardDeckLibrary
-                .GetBattleRewardPool(eleA, GameManager.Instance.currentFloor)
-                .Concat(CardDeckLibrary.GetBattleRewardPool(eleB, GameManager.Instance.currentFloor))
-                .GroupBy(card => card.cardId)
-                .Select(group => group.First());
 
-            yield return StartCoroutine(DoOneDraft(rewardPool, GetRewardPhase()));
-        }
-
-        // 地图是否初始化由 MapManager 决定，不能在这里提前写 gameInitialized。
+        // 选牌结束，返回地图
         UnityEngine.SceneManagement.SceneManager.LoadScene("MapScene");
     }
 
@@ -130,7 +163,21 @@ public class CardDraftManager : MonoBehaviour
     {
         if (_isSelected || index < 0 || index >= _currentOptions.Count) return;
         CardData card = _currentOptions[index];
-        GameManager.Instance.AddCardToBag(card.cardId);
+        GameManager.DraftMode mode = GameManager.Instance.currentDraftMode;
+
+        switch (mode)
+        {
+            case GameManager.DraftMode.InitialDraft:
+            case GameManager.DraftMode.BattleReward:
+            case GameManager.DraftMode.EventReward:
+                GameManager.Instance.AddCardToBag(card.cardId);
+                break;
+
+            case GameManager.DraftMode.EventRemove:
+                GameManager.Instance.RemoveCardFromBag(card.cardId);
+                break;
+        }
+
         FinishCurrentDraft();
     }
 

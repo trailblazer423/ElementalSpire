@@ -533,7 +533,15 @@ public class BattleManager : MonoBehaviour
     {
         _returningToMap = true;
         yield return new WaitForSeconds(_returnToMapDelay);
+
+        // 新增：设置选牌场景的工作模式为战斗奖励
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.currentDraftMode = GameManager.DraftMode.BattleReward;
+        }
+
         SceneManager.LoadScene(_rewardSceneName);
+
     }
 
     public void LogBattleEvent(string message)

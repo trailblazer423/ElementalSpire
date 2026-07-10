@@ -4,9 +4,16 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using ElementalSpire.Cards;
 using System.Linq;
+using UnityEngine.UI;
 
 public class MapManager : MonoBehaviour
 {
+    [Header("事件节点UI")]
+    public GameObject eventChoicePanel;
+    public Button btnGetCardReward;
+    public Button btnRemoveCard;
+
+
     public static MapManager Instance;
 
     [Header("场景中所有地图节点")]
@@ -21,7 +28,40 @@ public class MapManager : MonoBehaviour
         else
         {
             Destroy(gameObject);
+            return;
         }
+
+        if (btnGetCardReward != null)
+            btnGetCardReward.onClick.AddListener(OnEventGetCardClicked);
+        if (btnRemoveCard != null)
+            btnRemoveCard.onClick.AddListener(OnEventRemoveCardClicked);
+    }
+
+    /// <summary>
+    /// 点击「获得卡牌」：进入事件奖励选牌
+    /// </summary>
+    private void OnEventGetCardClicked()
+    {
+        eventChoicePanel?.SetActive(false);
+        GameManager.Instance.currentDraftMode = GameManager.DraftMode.EventReward;
+        GameManager.Instance.pendingEventToClear = true;
+        SceneManager.LoadScene("CardDraftScene");
+    }
+
+    /// <summary>
+    /// 点击「舍弃卡牌」：进入事件移除选牌
+    /// </summary>
+    private void OnEventRemoveCardClicked()
+    {
+        if (GameManager.Instance.playerCardBag.Count == 0)
+        {
+            Debug.LogWarning("[MapManager] 牌库为空，无法舍弃卡牌");
+            return;
+        }
+        eventChoicePanel?.SetActive(false);
+        GameManager.Instance.currentDraftMode = GameManager.DraftMode.EventRemove;
+        GameManager.Instance.pendingEventToClear = true;
+        SceneManager.LoadScene("CardDraftScene");
     }
 
     private void OnEnable()
@@ -132,6 +172,38 @@ public class MapManager : MonoBehaviour
 
         EnsureRewardManager();
         EnsureGameManager();
+
+        if (GameManager.Instance.pendingEventToClear)
+        {
+            GameManager.Instance.pendingEventToClear = false;
+            int nodeId = GameManager.Instance.currentNodeId;
+            bool isLast = GameManager.Instance.IsLastNodeOfFloor();
+
+            // 标记当前事件节点已完成
+            GameManager.Instance.MarkNodeCleared(nodeId);
+            foreach (var node in AllMapNodes)
+            {
+                if (node != null && node.NodeId == nodeId)
+                    node.IsCleared = true;
+            }
+
+            // 解锁下一个节点
+            if (!isLast)
+            {
+                UnlockNextNodes(nodeId);
+            }
+            else
+            {
+                bool hasNext = GameManager.Instance.AdvanceToNextFloor();
+                if (!hasNext)
+                {
+                    ChallengeRunTracker.EnsureExists().EndRun(true);
+                    SceneManager.LoadScene("MainMenuScene");
+                    return;
+                }
+                ResetNodesForNewFloor();
+            }
+        }
 
         // 先打印状态，确认流程是否执行
         Debug.Log($"[MapManager] 地图加载完成：gameInitialized={GameManager.Instance.gameInitialized}");

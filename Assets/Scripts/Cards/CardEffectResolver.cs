@@ -20,6 +20,7 @@ public class CardEffectResolver
     private int corrosiveWavePoisonPerDraw = 0;
     private int toxicCloudPoisonAmount = 0;
     private bool hellionResolving = false;
+    private EnemyUnit selectedTarget;
 
     public CardEffectResolver(
         BattleManager battleManager,
@@ -57,13 +58,13 @@ public class CardEffectResolver
         elementReactionResolver.ClearAttachmentAtTurnStart();
     }
 
-    public void ResolveEffect(CardData card, ElementType chosenElement = ElementType.None)
+    public void ResolveEffect(CardData card, ElementType chosenElement = ElementType.None, EnemyUnit target = null)
     {
         if (card == null) return;
-        ResolveEffect(new CardInstance(card.cardId), chosenElement);
+        ResolveEffect(new CardInstance(card.cardId), chosenElement, target);
     }
 
-    public void ResolveEffect(CardInstance cardInstance, ElementType chosenElement = ElementType.None)
+    public void ResolveEffect(CardInstance cardInstance, ElementType chosenElement = ElementType.None, EnemyUnit target = null)
     {
         if (cardInstance == null) return;
 
@@ -71,6 +72,7 @@ public class CardEffectResolver
         if (card == null) return;
 
         bool upgraded = cardInstance.isUpgraded;
+        selectedTarget = target;
         battleManager?.LogBattleEvent($"结算 {card.cardName}{(upgraded ? "+" : string.Empty)}。");
 
         switch (card.cardId)
@@ -249,18 +251,29 @@ public class CardEffectResolver
         }
     }
 
-    private ElementReactionResult DealAttackDamage(int baseDamage, int hitCount, ElementType element, string source)
+    /// <summary>
+    /// 造成攻击伤害（支持多敌人目标选择）
+    /// </summary>
+    /// <param name="target">目标敌人，null=默认目标</param>
+    private ElementReactionResult DealAttackDamage(int baseDamage, int hitCount, ElementType element, string source, EnemyUnit target = null)
     {
+        target = target ?? selectedTarget;
         int powerBonus = playerState != null ? playerState.power : 0;
         ElementReactionResult lastReaction = new ElementReactionResult();
 
         for (int i = 0; i < hitCount; i++)
         {
-            // 每段攻击独立结算元素附着/反应
             lastReaction = ResolveElementAttachment(element, source);
 
-            int finalDamage = Mathf.Max(0, Mathf.FloorToInt((baseDamage + powerBonus) * lastReaction.DamageMultiplier));
-            battleManager?.DealDamageToEnemy(finalDamage);
+            int weaknessPenalty = playerState != null ? playerState.Weakness : 0;
+            int finalDamage = Mathf.Max(0, Mathf.FloorToInt((baseDamage + powerBonus - weaknessPenalty) * lastReaction.DamageMultiplier));
+
+            // 多敌人模式：对指定目标（或默认目标）造成伤害
+            if (target != null)
+                battleManager?.DealDamageToTarget(target, finalDamage);
+            else
+                battleManager?.DealDamageToEnemy(finalDamage);
+
             battleManager?.LogBattleEvent($"{source} 第{i + 1}段：造成 {finalDamage} 点伤害。");
         }
 
@@ -354,21 +367,42 @@ public class CardEffectResolver
         }
     }
 
-    private void ApplyPoisonStacks(int amount, string source, bool resolveElement = true)
+    /// <summary>
+    /// 对敌人施加中毒（支持多敌人目标选择）
+    /// </summary>
+    /// <param name="target">目标敌人，null=默认目标</param>
+    private void ApplyPoisonStacks(int amount, string source, bool resolveElement = true, EnemyUnit target = null)
     {
+        target = target ?? selectedTarget;
+        // 多敌人模式或有指定目标时使用 EnemyUnit
+        if (battleManager?.MultiEnemyManager != null && target != null)
+        {
+            int finalAmount = amount;
+            if (resolveElement)
+            {
+                ElementReactionResult reaction = ResolveElementAttachment(ElementType.Poison, source);
+                finalAmount *= reaction.PoisonMultiplier;
+            }
+            if (finalAmount <= 0) return;
+            target.ApplyPoison(finalAmount);
+            battleManager?.LogBattleEvent($"{source}：对{target.DisplayName}施加中毒 {finalAmount} 层，当前中毒 {target.state?.PoisonStacks}。");
+            return;
+        }
+
+        // 传统单敌人模式
         EnemyState enemyState = battleManager?.EnemyState;
         if (enemyState == null) return;
 
-        int finalAmount = amount;
+        int finalAmount2 = amount;
         if (resolveElement)
         {
             ElementReactionResult reaction = ResolveElementAttachment(ElementType.Poison, source);
-            finalAmount *= reaction.PoisonMultiplier;
+            finalAmount2 *= reaction.PoisonMultiplier;
         }
 
-        if (finalAmount <= 0) return;
-        enemyState.AddPoisonStacks(finalAmount);
-        battleManager?.LogBattleEvent($"{source}：施加中毒 {finalAmount} 层，当前中毒 {enemyState.PoisonStacks}。");
+        if (finalAmount2 <= 0) return;
+        enemyState.AddPoisonStacks(finalAmount2);
+        battleManager?.LogBattleEvent($"{source}：施加中毒 {finalAmount2} 层，当前中毒 {enemyState.PoisonStacks}。");
     }
 
     private void AddPower(int amount)

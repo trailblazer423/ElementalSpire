@@ -15,10 +15,10 @@ public class currentEnergy : MonoBehaviour
     /// <summary>
     /// 回合开始时回满能量
     /// </summary>
-    public void RefillEnergy()
+    public void RefillEnergy(int penalty = 0)
     {
         int max = _maxEnergyComponent != null ? _maxEnergyComponent.energyMax : 3;
-        _currentEnergy = max;
+        _currentEnergy = Mathf.Max(0, max - Mathf.Max(0, penalty));
     }
 
     /// <summary>

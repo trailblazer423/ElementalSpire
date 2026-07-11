@@ -7,6 +7,7 @@ public enum EnemyIntent
     Charge,
     Heal,
     Buff,
+    Debuff,
     None
 }
 
@@ -14,15 +15,20 @@ public class EnemyController : MonoBehaviour
 {
     [Header("敌人数据")]
     public EnemyData enemyData;
+    protected PlayerState _playerState;
+    protected currentEnergy _playerEnergy;
 
     [Header("意图")]
     public EnemyIntent currentIntent = EnemyIntent.None;
     public int intentValue = 0;
+    [Header("意图描述(如：力量+2 / 易伤+3)")]
+    public string intentDescription = "";
 
     protected enemyHP _enemyHP;
     protected enemyBlock _enemyBlock;
     protected playerHP _playerHP;
     protected EnemyState _enemyState;
+    private bool _dataInitialized;
 
     public bool IsBoss => enemyData != null && enemyData.enemyType == EnemyType.Boss;
 
@@ -35,6 +41,7 @@ public class EnemyController : MonoBehaviour
         if (data == null) return;
 
         enemyData = data;
+        CacheReferences();
         enemyMaxHP maxHPComp = GetComponent<enemyMaxHP>();
         if (maxHPComp != null)
             maxHPComp.maxHP = data.maxHP;
@@ -42,17 +49,15 @@ public class EnemyController : MonoBehaviour
             _enemyHP.CurrentHP = data.maxHP;
 
         DecideNextIntent();
+        _dataInitialized = true;
         Debug.Log($"[EnemyController] 敌人数据已注入：{data.enemyName} (HP:{data.maxHP})");
     }
 
-    void Start()
+    protected virtual void Start()
     {
-        _enemyHP = GetComponent<enemyHP>();
-        _enemyBlock = GetComponent<enemyBlock>();
-        _enemyState = GetComponent<EnemyState>();
-        _playerHP = GameObject.Find("Player")?.GetComponent<playerHP>();
+        CacheReferences();
 
-        if (enemyData != null)
+        if (enemyData != null && !_dataInitialized)
         {
             enemyMaxHP maxHPComp = GetComponent<enemyMaxHP>();
             if (maxHPComp != null)
@@ -60,7 +65,18 @@ public class EnemyController : MonoBehaviour
             if (_enemyHP != null)
                 _enemyHP.CurrentHP = enemyData.maxHP;
             DecideNextIntent();
+            _dataInitialized = true;
         }
+    }
+
+    protected void CacheReferences()
+    {
+        _enemyHP = GetComponent<enemyHP>();
+        _enemyBlock = GetComponent<enemyBlock>();
+        _enemyState = GetComponent<EnemyState>();
+        _playerHP = GameObject.Find("Player")?.GetComponent<playerHP>();
+        _playerEnergy = GameObject.Find("Player")?.GetComponent<currentEnergy>();
+        _playerState = GameObject.Find("Player")?.GetComponent<PlayerState>();
     }
 
     /// <summary>
@@ -88,6 +104,9 @@ public class EnemyController : MonoBehaviour
     protected virtual void DecideIntent()
     {
         if (enemyData == null) return;
+
+        // 每次决定新意图时清空描述，由具体子类设置
+        intentDescription = "";
 
         float random = Random.value;
 
@@ -122,6 +141,9 @@ public class EnemyController : MonoBehaviour
             case EnemyIntent.Buff:
                 Buff();
                 break;
+            case EnemyIntent.Debuff:
+                Debuff();
+                break;
             default:
                 break;
         }
@@ -130,6 +152,14 @@ public class EnemyController : MonoBehaviour
     public virtual void Attack()
     {
         int damage = intentValue > 0 ? intentValue : enemyData.baseAttack;
+
+        // 敌人力量加成
+        if (_enemyState != null && _enemyState.Power > 0)
+            damage += _enemyState.Power;
+
+        // 敌人虚弱减伤
+        if (_enemyState != null && _enemyState.Weakness > 0)
+            damage = Mathf.Max(0, damage - _enemyState.Weakness);
 
         // 集成深度中毒系统：中毒时伤害降低
         if (_enemyState != null && _enemyState.TryConsumeDeepPoison())
@@ -165,7 +195,26 @@ public class EnemyController : MonoBehaviour
 
     public virtual void Buff()
     {
-        Debug.Log($"{enemyData.enemyName} 获得强化！");
+        // 默认：给自己加力量
+        if (_enemyState != null)
+        {
+            int powerAmount = intentValue > 0 ? intentValue : 2;
+            _enemyState.AddPower(powerAmount);
+            Debug.Log($"{enemyData.enemyName} 获得强化！力量 +{powerAmount}");
+        }
+        else
+        {
+            Debug.Log($"{enemyData.enemyName} 获得强化！");
+        }
+    }
+
+    /// <summary>
+    /// 虚方法 - 默认对玩家施加减益效果
+    /// 子类可重写以实现具体效果（虚弱/易伤/中毒等）
+    /// </summary>
+    public virtual void Debuff()
+    {
+        Debug.Log($"{enemyData.enemyName} 对玩家施加减益！");
     }
 
     public EnemyIntent GetCurrentIntent()

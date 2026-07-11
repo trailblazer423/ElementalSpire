@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: XiangrikuiData
   m_EditorClassIdentifier: 
   enemyName: "\u5411\u65E5\u8475"
-  maxHP: 40
+  maxHP: 30
   baseAttack: 0
   baseDefend: 0
   enemyType: 0

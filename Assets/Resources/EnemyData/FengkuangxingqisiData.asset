@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: FengkuangxingqisiData
   m_EditorClassIdentifier: 
   enemyName: "\u75AF\u72C2\u661F\u671F\u56DB"
-  maxHP: 300
+  maxHP: 120
   baseAttack: 0
   baseDefend: 0
   enemyType: 1

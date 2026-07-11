@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: JianguoData
   m_EditorClassIdentifier: 
   enemyName: "\u575A\u679C"
-  maxHP: 60
+  maxHP: 40
   baseAttack: 0
   baseDefend: 0
   enemyType: 0

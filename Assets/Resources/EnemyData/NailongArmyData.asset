@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ef62f7d66b02a024fa9bd8dfdbe986d9, type: 3}
-  m_Name: WandousheshouData
+  m_Name: NailongArmyData
   m_EditorClassIdentifier: 
-  enemyName: "\u8C4C\u8C46\u5C04\u624B"
-  maxHP: 30
+  enemyName: "\u5976\u9F99\u5927\u519B"
+  maxHP: 135
   baseAttack: 0
   baseDefend: 0
-  enemyType: 0
+  enemyType: 1
   attackChance: 0

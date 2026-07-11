@@ -14,6 +14,7 @@ public class BossController : EnemyController
             // 蓄力满了，强制重击
             currentIntent = EnemyIntent.Attack;
             intentValue = enemyData.baseAttack + _chargeCount * 3;
+            intentDescription = "重击";
             _chargeCount = 0;
         }
         else if (random < 0.3f)
@@ -21,12 +22,14 @@ public class BossController : EnemyController
             // 蓄力
             currentIntent = EnemyIntent.Charge;
             intentValue = _chargeCount + 1;
+            intentDescription = $"蓄力 {_chargeCount + 1}/{_maxCharge}";
         }
         else if (random < 0.6f && _chargeCount > 0)
         {
             // 重击
             currentIntent = EnemyIntent.Attack;
             intentValue = enemyData.baseAttack + _chargeCount * 3;
+            intentDescription = "重击";
             _chargeCount = 0;
         }
         else if (random < 0.8f)
@@ -34,12 +37,14 @@ public class BossController : EnemyController
             // 防御（Boss 也会防守）
             currentIntent = EnemyIntent.Defend;
             intentValue = enemyData.baseDefend + 2;
+            intentDescription = "";
         }
         else
         {
             // 普通攻击
             currentIntent = EnemyIntent.Attack;
             intentValue = enemyData.baseAttack;
+            intentDescription = "";
         }
     }
 
@@ -97,6 +102,8 @@ public class BossController : EnemyController
 
     public override void Buff()
     {
-        Debug.Log("Boss 获得力量加成！");
+        int powerAmount = intentValue > 0 ? intentValue : 2;
+        _enemyState?.AddPower(powerAmount);
+        Debug.Log($"Boss 获得力量 +{powerAmount}！");
     }
 }

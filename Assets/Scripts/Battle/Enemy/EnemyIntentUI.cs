@@ -15,11 +15,18 @@ public class EnemyIntentUI : MonoBehaviour
         _controller = GetComponent<EnemyController>();
     }
 
+    public void SetController(EnemyController controller)
+    {
+        _controller = controller;
+    }
+
     /// <summary>
     /// 获取当前意图显示文本和颜色，供 BattleUI 使用。
     /// </summary>
     public void GetIntentDisplay(out string text, out Color color)
     {
+        EnsureControllerReference();
+
         if (_controller == null)
         {
             text = "";
@@ -29,6 +36,7 @@ public class EnemyIntentUI : MonoBehaviour
 
         EnemyIntent intent = _controller.GetCurrentIntent();
         int value = _controller.GetIntentValue();
+        string description = _controller.intentDescription;
 
         switch (intent)
         {
@@ -41,7 +49,7 @@ public class EnemyIntentUI : MonoBehaviour
                 color = new Color(0.2f, 0.7f, 0.9f);
                 break;
             case EnemyIntent.Charge:
-                text = "⚡ 蓄力";
+                text = string.IsNullOrEmpty(description) ? "⚡ 蓄力" : $"⚡ {description}";
                 color = new Color(1f, 0.8f, 0.1f);
                 break;
             case EnemyIntent.Heal:
@@ -49,13 +57,31 @@ public class EnemyIntentUI : MonoBehaviour
                 color = new Color(0.2f, 0.9f, 0.3f);
                 break;
             case EnemyIntent.Buff:
-                text = "⬆ 强化";
+                text = string.IsNullOrEmpty(description) ? $"⬆ 强化 {value}" : $"⬆ {description}";
                 color = new Color(0.7f, 0.3f, 0.9f);
+                break;
+            case EnemyIntent.Debuff:
+                text = string.IsNullOrEmpty(description) ? $"▼ 减益 {value}" : $"▼ {description}";
+                color = new Color(1f, 0.6f, 0.0f);
                 break;
             default:
                 text = "";
                 color = Color.gray;
                 break;
+        }
+    }
+
+    private void EnsureControllerReference()
+    {
+        if (_controller != null && _controller.enabled && _controller.enemyData != null)
+            return;
+
+        foreach (EnemyController candidate in GetComponents<EnemyController>())
+        {
+            if (!candidate.enabled || candidate.enemyData == null) continue;
+
+            _controller = candidate;
+            return;
         }
     }
 }

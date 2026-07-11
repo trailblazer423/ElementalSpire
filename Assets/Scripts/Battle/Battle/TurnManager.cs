@@ -30,6 +30,7 @@ public class TurnManager : MonoBehaviour
     private playerBlock _playerBlock;
     private enemyBlock _enemyBlock;
     private PlayerState _playerState;
+    private playerHP _playerHP;
 
     private BattlePhase _currentPhase;
     private int _currentTurn = 1;
@@ -57,12 +58,13 @@ public class TurnManager : MonoBehaviour
     public bool IsPlayerTurn => _currentPhase == BattlePhase.PlayerAction;
     public bool IsRunning => _isRunning;
 
-    public void Initialize(currentEnergy playerEnergy, playerBlock playerBlock, enemyBlock enemyBlock, PlayerState playerState = null)
+    public void Initialize(currentEnergy playerEnergy, playerBlock playerBlock, enemyBlock enemyBlock, PlayerState playerState = null, playerHP playerHP = null)
     {
         _playerEnergy = playerEnergy;
         _playerBlock = playerBlock;
         _enemyBlock = enemyBlock;
         _playerState = playerState;
+        _playerHP = playerHP;
     }
 
     public void StartBattle()
@@ -133,7 +135,19 @@ public class TurnManager : MonoBehaviour
     private IEnumerator ExecutePhase_PlayerTurnStart()
     {
         SetPhase(BattlePhase.PlayerTurnStart);
-        _playerState?.ResetTurnFlags();
+
+        if (_playerState != null)
+        {
+            _playerState.ResetTurnFlags();
+
+            // 易伤每回合减1
+            if (_playerState.Vulnerable > 0)
+            {
+                _playerState.TickVulnerable();
+                Debug.Log($"[TurnManager] 易伤-1，当前易伤 {_playerState.Vulnerable}");
+            }
+        }
+
         OnTurnStarted?.Invoke(_currentTurn);
         Debug.Log($"[TurnManager] === 第 {_currentTurn} 回合 ===");
         yield return new WaitForSeconds(_phaseDelay * 0.5f);
@@ -145,7 +159,8 @@ public class TurnManager : MonoBehaviour
 
         if (_playerEnergy != null)
         {
-            _playerEnergy.RefillEnergy();
+            int energyPenalty = _playerState != null ? _playerState.ConsumeNextTurnEnergyPenalty() : 0;
+            _playerEnergy.RefillEnergy(energyPenalty);
             Debug.Log($"[TurnManager] 能量已恢复至 {_playerEnergy.CurrentEnergy}/{_playerEnergy.MaxEnergy}");
         }
 
@@ -187,6 +202,33 @@ public class TurnManager : MonoBehaviour
     private IEnumerator ExecutePhase_PoisonTickPhase()
     {
         SetPhase(BattlePhase.PoisonTickPhase);
+
+        // ===== 玩家中毒结算 =====
+        if (_playerState != null)
+        {
+            int poisonDamage = _playerState.TickPoison();
+            if (poisonDamage > 0)
+            {
+                if (_playerHP != null)
+                {
+                    // 中毒伤害：先扣护盾再扣血，且不受易伤加成
+                    _playerHP.TakeDamage(poisonDamage, false);
+                    Debug.Log($"💀 中毒！玩家受到 {poisonDamage} 点伤害（护盾抵扣后），剩余中毒 {_playerState.PoisonStacks}");
+                }
+                else
+                {
+                    // 兜底：通过 FindObjectOfType 查找
+                    playerHP playerHp = FindObjectOfType<playerHP>();
+                    if (playerHp != null)
+                    {
+                        playerHp.TakeDamage(poisonDamage, false);
+                        Debug.Log($"💀 中毒！玩家受到 {poisonDamage} 点伤害（护盾抵扣后），剩余中毒 {_playerState.PoisonStacks}");
+                    }
+                }
+            }
+        }
+
+        // ===== 敌人中毒结算 =====
         OnPoisonTickPhase?.Invoke();
         Debug.Log("[TurnManager] 中毒结算阶段");
         yield return new WaitForSeconds(_phaseDelay * 0.3f);

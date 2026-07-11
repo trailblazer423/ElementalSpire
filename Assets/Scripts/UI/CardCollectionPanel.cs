@@ -62,6 +62,17 @@ public sealed class CardCollectionPanel : MonoBehaviour
 
     private void BuildUi()
     {
+        // 战斗 UI 可能会在 HUD Canvas 上后创建。使用独立排序 Canvas，
+        // 让牌组/抽牌堆/弃牌堆查看窗口始终覆盖手牌和敌人信息。
+        Canvas overlayCanvas = gameObject.GetComponent<Canvas>();
+        if (overlayCanvas == null)
+            overlayCanvas = gameObject.AddComponent<Canvas>();
+        overlayCanvas.overrideSorting = true;
+        overlayCanvas.sortingOrder = 31000;
+
+        if (gameObject.GetComponent<GraphicRaycaster>() == null)
+            gameObject.AddComponent<GraphicRaycaster>();
+
         Image backdrop = gameObject.GetComponent<Image>();
         if (backdrop == null)
             backdrop = gameObject.AddComponent<Image>();

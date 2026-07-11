@@ -23,7 +23,16 @@ public class PlayerState : MonoBehaviour
     private bool _waterResonanceUsedThisTurn = false;
     private bool _reactionThisTurn = false;
 
+    [Header("怪物施加的状态")]
+    [SerializeField] private int _poisonStacks = 0;
+    [SerializeField] private int _weakness = 0;
+    [SerializeField] private int _vulnerable = 0;
+    [SerializeField] private int _nextTurnEnergyPenalty = 0;
+
     public int power => _power;
+    public int PoisonStacks => _poisonStacks;
+    public int Weakness => _weakness;
+    public int Vulnerable => _vulnerable;
     public int WaterSource => _waterSource;
     public int DemonFormPowerPerTurn => _demonFormPowerPerTurn;
     public bool HellionActive => _hellionActive;
@@ -39,6 +48,51 @@ public class PlayerState : MonoBehaviour
     {
         if (amount > 0)
             _power += amount;
+    }
+
+    public void AddPoison(int amount)
+    {
+        if (amount > 0)
+            _poisonStacks += amount;
+    }
+
+    public int TickPoison()
+    {
+        if (_poisonStacks <= 0) return 0;
+
+        int damage = _poisonStacks;
+        _poisonStacks = Mathf.Max(0, _poisonStacks - 1);
+        return damage;
+    }
+
+    public void AddWeakness(int amount)
+    {
+        if (amount > 0)
+            _weakness += amount;
+    }
+
+    public void AddVulnerable(int amount)
+    {
+        if (amount > 0)
+            _vulnerable += amount;
+    }
+
+    public void TickVulnerable()
+    {
+        _vulnerable = Mathf.Max(0, _vulnerable - 1);
+    }
+
+    public void AddNextTurnEnergyPenalty(int amount)
+    {
+        if (amount > 0)
+            _nextTurnEnergyPenalty += amount;
+    }
+
+    public int ConsumeNextTurnEnergyPenalty()
+    {
+        int penalty = _nextTurnEnergyPenalty;
+        _nextTurnEnergyPenalty = 0;
+        return penalty;
     }
 
     public void RemovePower(int amount)
@@ -146,6 +200,10 @@ public class PlayerState : MonoBehaviour
         _waterResonanceActive = false;
         _triCoreLimit = 0;
         _triCoreUsed = 0;
+        _poisonStacks = 0;
+        _weakness = 0;
+        _vulnerable = 0;
+        _nextTurnEnergyPenalty = 0;
         ResetTurnFlags();
     }
 }

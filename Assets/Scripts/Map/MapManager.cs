@@ -20,12 +20,12 @@ public class MapManager : MonoBehaviour
         "Normal",
         "Event",
         "Rest",
-        "Normal",
+        "Elite",
         "Normal",
         "Normal",
         "Event",
         "Rest",
-        "Normal"
+        "Boss"
     };
 
     private void Awake()

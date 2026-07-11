@@ -1,10 +1,11 @@
-﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using ElementalSpire.Cards;
-using System.Linq;
 
+/// <summary>
+/// 单路线十节点地图控制器。
+/// 节点顺序固定为：战斗、战斗、事件、休息、战斗、战斗、战斗、事件、休息、战斗。
+/// 所有跨场景进度都由 GameManager 保存；场景对象只负责显示与入口校验。
+/// </summary>
 public class MapManager : MonoBehaviour
 {
     public static MapManager Instance;
@@ -12,360 +13,217 @@ public class MapManager : MonoBehaviour
     [Header("场景中所有地图节点")]
     public MapNode[] AllMapNodes;
 
+    private static readonly string[] NodeTypes =
+    {
+        string.Empty,
+        "Normal",
+        "Normal",
+        "Event",
+        "Rest",
+        "Elite",
+        "Normal",
+        "Normal",
+        "Event",
+        "Rest",
+        "Boss"
+    };
+
     private void Awake()
     {
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-        else
+        if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
-        }
-    }
-
-    private void OnEnable()
-    {
-        SceneManager.sceneLoaded += OnSceneLoaded;
-    }
-
-    private void OnDisable()
-    {
-        SceneManager.sceneLoaded -= OnSceneLoaded;
-    }
-
-    // ========== 按钮事件统一按 OnXxxClicked 规范命名 ==========
-    /// <summary>
-    /// 返回主菜单按钮处理
-    /// </summary>
-    public void OnBackToMainMenuClicked()
-    {
-        SceneManager.LoadScene("MainMenuScene");
-    }
-
-    
-
-    /// <summary>
-    /// 执行一次选牌（开局选牌/战斗奖励）
-    /// </summary>
-    private IEnumerator DoDraftSelect(IEnumerable<CardData> fullPool, DraftPhase phase, bool canSkip = true)
-    {
-        List<CardData> options = GetRandomCardsByRarity(
-            fullPool.ToList(), 3, GameManager.Instance.currentFloor, phase);
-
-        // 打印候选牌，方便调试验证池牌是否正确
-        string cardNames = options.Count > 0
-            ? string.Join("，", options.Select(c => c.cardName))
-            : "无可用牌";
-        Debug.Log($"[MapManager] 候选牌：{cardNames}");
-
-        // 测试模式：默认选第一张，不等待UI
-        CardData selectedCard = options.Count > 0 ? options[0] : null;
-
-        if (selectedCard != null)
-        {
-            GameManager.Instance.AddCardToBag(selectedCard.cardId);
-            Debug.Log($"[MapManager] 选中：{selectedCard.cardName}");
-        }
-        else
-        {
-            Debug.Log("[MapManager] 没有可选牌");
+            return;
         }
 
-        yield return null; // 只等待一帧，后续可改UI
-    }
-
-    /// <summary>
-    /// 按稀有度权重从牌池中随机获取指定数量卡牌
-    /// </summary>
-    private List<CardData> GetRandomCardsByRarity(
-        List<CardData> pool, int count, int floor, DraftPhase phase)
-    {
-        if (pool.Count <= count) return new List<CardData>(pool);
-
-        // 按阶段设置稀有度权重，后续可调整参数
-        (int common, int rare, int precious) = phase switch
-        {
-            DraftPhase.Start => (80, 20, 0),
-            DraftPhase.Battle1_3 => (75, 25, 0),
-            DraftPhase.Battle4_7 => (55, 35, 10),
-            DraftPhase.Battle8_10 => (35, 40, 25),
-            _ => (80, 20, 0)
-        };
-
-        List<CardData> result = new List<CardData>();
-        List<CardData> remaining = new List<CardData>(pool);
-
-        for (int i = 0; i < count; i++)
-        {
-            if (remaining.Count == 0) break;
-
-            // 通过随机数决定稀有度
-            int total = common + rare + precious;
-            int roll = Random.Range(0, total);
-            string targetRarity;
-
-            if (roll < common)
-                targetRarity = CardDeckLibrary.Common;
-            else if (roll < common + rare)
-                targetRarity = CardDeckLibrary.Rare;
-            else
-                targetRarity = CardDeckLibrary.Precious;
-
-            // 筛选对应稀有度的牌，没有就从全池兜底
-            var rarityPool = remaining.Where(c => c.rarity == targetRarity).ToList();
-            if (rarityPool.Count == 0)
-                rarityPool = remaining;
-
-            // 随机选一张，保证不重复
-            CardData picked = rarityPool[Random.Range(0, rarityPool.Count)];
-            result.Add(picked);
-            remaining.Remove(picked);
-        }
-
-        return result;
-    }
-
-    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-    {
-        if (scene.name != "MapScene") return;
-
-        EnsureRewardManager();
+        Instance = this;
         EnsureGameManager();
 
-        // 先打印状态，确认流程是否执行
-        Debug.Log($"[MapManager] 地图加载完成：gameInitialized={GameManager.Instance.gameInitialized}");
+        // main 曾把旧事件二选一面板误设为默认激活；事件现在有独立场景，地图中必须关闭它。
+        GameObject legacyEventPanel = GameObject.Find("EventChoicePanel");
+        if (legacyEventPanel != null)
+            legacyEventPanel.SetActive(false);
+    }
 
-       
-        Debug.Log($"[MapManager] 地图加载：isBattleWin={GameManager.Instance?.isBattleWin}, currentFloor={GameManager.Instance?.currentFloor}, AllMapNodes数量={(AllMapNodes != null ? AllMapNodes.Length : 0)}");
-
-        // ========== 新增：首次进入地图时初始化节点 ==========
-        bool isFirstEnter = !GameManager.Instance.gameInitialized && !GameManager.Instance.isBattleWin;
-        if (isFirstEnter)
-        {
-            Debug.Log("[MapManager] 新游戏首次进入地图，初始化首个节点");
-            // 初始化当前楼层进度，解锁首个节点
-            GameManager.Instance.ResetMapProgressForCurrentFloor();
-            ResetNodesForNewFloor();
-            GameManager.Instance.gameInitialized = true; // 标记游戏已初始化，避免重复执行
-        }
-        // ==================================================
-
-
-
-        if (GameManager.Instance != null && GameManager.Instance.isBattleWin)
-        {
-            int winNodeId = GameManager.Instance.currentNodeId;
-            bool isLastNode = GameManager.Instance.IsLastNodeOfFloor();
-            Debug.Log($"[MapManager] 战斗胜利：winNodeId={winNodeId}, isLastNode={isLastNode}");
-            ChallengeRunTracker.EnsureExists().MarkProgress(GameManager.Instance.currentFloor, winNodeId);
-
-            foreach (var node in AllMapNodes)
-            {
-                if (node == null)
-                {
-                    Debug.LogWarning("[MapManager] AllMapNodes 中存在空引用，请检查 Inspector 配置");
-                    continue;
-                }
-
-                if (node.NodeId == winNodeId)
-                {
-                    GameManager.Instance.MarkNodeCleared(winNodeId);
-                    node.IsCleared = true;
-                    RewardManager.Instance?.GrantReward(node.ClearReward);
-                }
-                else if (!isLastNode && node.NodeId == winNodeId + 1)
-                {
-                    GameManager.Instance.MarkNodeUnlocked(winNodeId + 1);
-                    node.IsUnlocked = true;
-                }
-            }
-
-            if (isLastNode)
-            {
-                // 准备推进到下一层
-                bool hasNextFloor = GameManager.Instance.AdvanceToNextFloor();
-                if (!hasNextFloor)
-                {
-                    // 第3关通关，回到主菜单
-                    Debug.Log("[MapManager] 全部3关通关，游戏胜利！");
-                    ChallengeRunTracker.EnsureExists().EndRun(true);
-                    SceneManager.LoadScene("MainMenuScene");
-                    return;
-                }
-
-                ChallengeRunTracker.EnsureExists().MarkProgress(GameManager.Instance.currentFloor, 0);
-
-                // 进入下一层，重置所有节点（同一层10个节点）
-                Debug.Log($"[MapManager] 进入第 {GameManager.Instance.currentFloor} 层");
-                ResetNodesForNewFloor();
-                RefreshAllNodes();
-                return;
-            }
-
-            GameManager.Instance.isBattleWin = false;
-        }
-
+    private void Start()
+    {
+        ConfigureFixedNodeTypes();
+        InitializeMapIfNeeded();
         RefreshAllNodes();
     }
 
-    private void ApplyPersistentNodeState()
+    private void OnDestroy()
     {
-        if (GameManager.Instance == null || AllMapNodes == null)
+        if (Instance == this)
+            Instance = null;
+    }
+
+    public static string GetNodeType(int nodeId)
+    {
+        return nodeId >= 1 && nodeId <= GameManager.NodesPerFloor
+            ? NodeTypes[nodeId]
+            : string.Empty;
+    }
+
+    public static string GetSceneForNode(int nodeId)
+    {
+        string nodeType = GetNodeType(nodeId);
+        if (nodeType == "Event") return "EventScene";
+        if (nodeType == "Rest") return "RestScene";
+        return "BattleScene";
+    }
+
+    /// <summary>
+    /// 当前唯一允许挑战的节点。已完成节点永远不会再次成为入口。
+    /// </summary>
+    public static int GetExpectedNodeId(GameManager gameManager)
+    {
+        if (gameManager == null)
+            return 0;
+
+        for (int nodeId = 1; nodeId <= GameManager.NodesPerFloor; nodeId++)
+        {
+            if (!gameManager.IsNodeCleared(nodeId))
+                return nodeId;
+        }
+
+        return 0;
+    }
+
+    public void OnNodeClicked(int nodeId, string ignoredSceneNodeType)
+    {
+        GameManager gameManager = GameManager.Instance;
+        if (gameManager == null)
+        {
+            Debug.LogError("[MapManager] GameManager 不存在，无法进入节点。");
+            return;
+        }
+
+        if (nodeId < 1 || nodeId > GameManager.NodesPerFloor)
+        {
+            Debug.LogWarning($"[MapManager] 非法节点 {nodeId}，已忽略。");
+            return;
+        }
+
+        int expectedNodeId = GetExpectedNodeId(gameManager);
+        if (gameManager.IsNodeCleared(nodeId)
+            || !gameManager.IsNodeUnlocked(nodeId)
+            || nodeId != expectedNodeId)
+        {
+            Debug.LogWarning(
+                $"[MapManager] 节点 {nodeId} 不可进入：cleared={gameManager.IsNodeCleared(nodeId)}, "
+                + $"unlocked={gameManager.IsNodeUnlocked(nodeId)}, expected={expectedNodeId}。");
+            RefreshAllNodes();
+            return;
+        }
+
+        int previousFloor = gameManager.currentFloor;
+        int previousNodeId = gameManager.currentNodeId;
+        string previousNodeType = gameManager.currentNodeType;
+        bool previousBattleWin = gameManager.isBattleWin;
+        string previousBattleResult = gameManager.lastBattleResult;
+
+        gameManager.currentFloor = 1;
+        gameManager.currentNodeId = nodeId;
+        gameManager.currentNodeType = GetNodeType(nodeId);
+        gameManager.isBattleWin = false;
+        gameManager.lastBattleResult = string.Empty;
+
+        // 进入节点前写入地图安全点。战斗/事件/休息中的退出只能回到这份快照。
+        if (!RunSaveRepository.SaveSafePoint())
+        {
+            gameManager.currentFloor = previousFloor;
+            gameManager.currentNodeId = previousNodeId;
+            gameManager.currentNodeType = previousNodeType;
+            gameManager.isBattleWin = previousBattleWin;
+            gameManager.lastBattleResult = previousBattleResult;
+            Debug.LogError($"[MapManager] 节点 {nodeId} 的战前安全点保存失败，已取消场景切换。请检查磁盘后重试。");
+            RefreshAllNodes();
+            return;
+        }
+
+        string targetScene = GetSceneForNode(nodeId);
+        Debug.Log($"[MapManager] 进入节点 {nodeId} ({gameManager.currentNodeType}) -> {targetScene}");
+        SceneManager.LoadScene(targetScene);
+    }
+
+    public void OnBackToMainMenuClicked()
+    {
+        ChallengeRunTracker tracker = ChallengeRunTracker.EnsureExists();
+        tracker.SuspendRun();
+        bool saveRequired = GameManager.Instance != null && GameManager.Instance.gameInitialized;
+        if (saveRequired && !RunSaveRepository.UpdateChallengeStateOnly())
+        {
+            tracker.ResumeRun();
+            Debug.LogError("[MapManager] 挑战计时保存失败，已取消返回主菜单。");
+            return;
+        }
+        SceneManager.LoadScene("MainMenuScene");
+    }
+
+    private void InitializeMapIfNeeded()
+    {
+        GameManager gameManager = GameManager.Instance;
+        if (gameManager == null)
             return;
 
-        foreach (var node in AllMapNodes)
+        if (!gameManager.gameInitialized)
         {
-            if (node == null)
-                continue;
+            gameManager.currentFloor = 1;
+            gameManager.ResetMapProgressForCurrentFloor();
+            gameManager.MarkNodeUnlocked(1);
+            gameManager.currentNodeId = 0;
+            gameManager.currentNodeType = string.Empty;
+            gameManager.gameInitialized = true;
+            gameManager.currentDraftMode = GameManager.DraftMode.BattleReward;
 
-            node.IsCleared = GameManager.Instance.IsNodeCleared(node.NodeId);
-            node.IsUnlocked = GameManager.Instance.IsNodeUnlocked(node.NodeId);
+            RunSaveRepository.SaveSafePoint();
+            Debug.Log("[MapManager] 已建立首个地图安全点并解锁节点1。");
+            return;
+        }
+
+        // 兼容旧数据或异常场景直开：若仍有未完成节点但没有入口，只恢复唯一合法入口。
+        int expectedNodeId = GetExpectedNodeId(gameManager);
+        if (expectedNodeId > 0 && !gameManager.IsNodeUnlocked(expectedNodeId))
+        {
+            gameManager.MarkNodeUnlocked(expectedNodeId);
+            RunSaveRepository.SaveSafePoint();
+        }
+    }
+
+    private void ConfigureFixedNodeTypes()
+    {
+        if (AllMapNodes == null)
+            return;
+
+        foreach (MapNode node in AllMapNodes)
+        {
+            if (node != null)
+                node.NodeType = GetNodeType(node.NodeId);
         }
     }
 
     private void RefreshAllNodes()
     {
-        ApplyPersistentNodeState();
-
-        if (AllMapNodes == null)
-        {
-            Debug.LogWarning("[MapManager] AllMapNodes 未配置，无法刷新地图节点");
+        GameManager gameManager = GameManager.Instance;
+        if (gameManager == null || AllMapNodes == null)
             return;
-        }
 
-        foreach (var node in AllMapNodes)
-        {
-            if (node != null)
-                node.RefreshView();
-        }
-    }
-
-    /// <summary>
-    /// 重置所有节点（同一层10个节点），并解锁最小NodeId的节点（节点1）
-    /// </summary>
-    private void ResetNodesForNewFloor()
-    {
-        int minNodeId = int.MaxValue;
-        int resetCount = 0;
-
-        if (GameManager.Instance != null)
-            GameManager.Instance.ResetMapProgressForCurrentFloor();
-
-        foreach (var node in AllMapNodes)
+        foreach (MapNode node in AllMapNodes)
         {
             if (node == null)
-            {
-                Debug.LogWarning("[MapManager] ResetNodesForNewFloor: 遇到空节点");
                 continue;
-            }
 
-            node.IsCleared = false;
-            node.IsUnlocked = false;
-            resetCount++;
-
-            if (node.NodeId < minNodeId)
-                minNodeId = node.NodeId;
-        }
-
-        Debug.Log($"[MapManager] 重置了 {resetCount} 个节点，最小 NodeId={minNodeId}");
-
-        if (minNodeId == int.MaxValue)
-        {
-            Debug.LogError("[MapManager] 没有找到任何有效节点！请检查 AllMapNodes 配置");
-            return;
-        }
-
-        // 解锁最小NodeId的节点（即节点1）
-        foreach (var node in AllMapNodes)
-        {
-            if (node != null && node.NodeId == minNodeId)
-            {
-                if (GameManager.Instance != null)
-                    GameManager.Instance.MarkNodeUnlocked(minNodeId);
-
-                node.IsUnlocked = true;
-                Debug.Log($"[MapManager] 已解锁节点 NodeId={node.NodeId}");
-                break;
-            }
+            node.NodeType = GetNodeType(node.NodeId);
+            node.IsCleared = gameManager.IsNodeCleared(node.NodeId);
+            node.IsUnlocked = gameManager.IsNodeUnlocked(node.NodeId);
+            node.RefreshView();
         }
     }
 
-    public void UnlockNextNodes(int currentNodeId)
-    {
-        int nextNodeId = currentNodeId + 1;
-
-        if (GameManager.Instance != null)
-            GameManager.Instance.MarkNodeUnlocked(nextNodeId);
-
-        foreach (var node in AllMapNodes)
-        {
-            if (node != null && node.NodeId == nextNodeId)
-            {
-                node.IsUnlocked = true;
-                node.RefreshView();
-            }
-        }
-    }
-
-    private void EnsureRewardManager()
-    {
-        if (RewardManager.Instance != null) return;
-        new GameObject("RewardManager", typeof(RewardManager));
-    }
-
-    private void EnsureGameManager()
-    {
-        if (GameManager.Instance != null) return;
-        var go = new GameObject("GameManager");
-        go.AddComponent<GameManager>();
-        Object.DontDestroyOnLoad(go);
-        Debug.Log("[MapManager] GameManager 不存在，自动创建");
-    }
-
-    private enum DraftPhase
-    {
-        Start,      // 开局选牌
-        Battle1_3,  // 1-3关战斗奖励
-        Battle4_7,  // 4-7关战斗奖励
-        Battle8_10  // 8-10关战斗奖励
-    }
-
-    /// <summary>
-    /// 所有地图节点点击统一入口。
-    /// </summary>
-    public void OnNodeClicked(int nodeId, string nodeType)
+    private static void EnsureGameManager()
     {
         if (GameManager.Instance == null)
-        {
-            Debug.LogError("[MapManager] GameManager 不存在，无法处理节点点击");
-            return;
-        }
-
-        if (!GameManager.Instance.IsNodeUnlocked(nodeId))
-        {
-            Debug.LogWarning($"[MapManager] 节点 {nodeId} 尚未解锁，忽略点击");
-            return;
-        }
-
-        GameManager.Instance.currentNodeId = nodeId;
-        GameManager.Instance.currentNodeType = nodeType;
-        ChallengeRunTracker.EnsureExists().MarkProgress(GameManager.Instance.currentFloor, nodeId);
-
-        if (IsBattleNodeType(nodeType))
-        {
-            SceneManager.LoadScene("BattleScene");
-            return;
-        }
-
-        Debug.LogWarning($"[MapManager] 节点 {nodeId} 的类型 {nodeType} 暂未接入，未进入战斗");
-    }
-
-    private bool IsBattleNodeType(string nodeType)
-    {
-        return string.IsNullOrEmpty(nodeType)
-            || nodeType == "Normal"
-            || nodeType == "Elite"
-            || nodeType == "Boss";
+            new GameObject("GameManager").AddComponent<GameManager>();
     }
 }

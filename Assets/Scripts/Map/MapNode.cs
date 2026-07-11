@@ -43,7 +43,7 @@ public class MapNode : MonoBehaviour
     {
         if (nodeBtn != null)
         {
-            nodeBtn.interactable = IsUnlocked;
+            nodeBtn.interactable = IsUnlocked && !IsCleared;
         }
 
         if (nodeImage != null)
@@ -69,13 +69,18 @@ public class MapNode : MonoBehaviour
 
         if (nodeNameText != null)
         {
-            nodeNameText.text = NodeType;
+            string displayType = NodeType == "Event"
+                ? "事件"
+                : NodeType == "Rest"
+                    ? "休息"
+                    : "战斗";
+            nodeNameText.text = $"{NodeId}  {displayType}";
         }
     }
 
     void OnMapNodeClicked()
     {
-        if (!IsUnlocked) return;
+        if (!IsUnlocked || IsCleared) return;
 
         // 所有节点逻辑统一交给 MapManager 处理
         if (MapManager.Instance != null)

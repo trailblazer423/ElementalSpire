@@ -16,8 +16,11 @@ public class BattleManager : MonoBehaviour
     [SerializeField] private GameObject _enemyObject;
 
     [Header("敌人配置")]
-    [SerializeField] private EnemyData[] _normalEnemyPool;  // 普通/精英敌人池
+    [SerializeField] private EnemyData[] _normalEnemyPool;
+    [SerializeField] private EnemyData[] _eliteEnemyPool;
+    [SerializeField] private EnemyData[] _naiLongArmyMembers;
     [SerializeField] private EnemyData _bossEnemyData;       // Boss 敌人数据
+    [SerializeField] private GameObject _enemyPrefab;         // 多敌人模式生成用
 
     [Header("初始牌组")]
     [SerializeField] private DeckPreset _startingDeck = DeckPreset.All;
@@ -41,6 +44,9 @@ public class BattleManager : MonoBehaviour
     private EnemyState _enemyState;
     private EnemyAI _enemyAI;
     private EnemyController _enemyController;
+    private MultiEnemyManager _multiEnemyManager;
+    private bool _isDaoDunEncounter;
+    private bool _isNaiLongArmyEncounter;
 
     private TurnManager _turnManager;
     private DeckManager _deckManager;
@@ -62,11 +68,22 @@ public class BattleManager : MonoBehaviour
     public playerBlock PlayerBlock => _playerBlock;
     public PlayerState PlayerState => _playerState;
     public EnemyState EnemyState => _enemyState;
+    public MultiEnemyManager MultiEnemyManager => _multiEnemyManager;
     public bool IsBattleOver => _isBattleOver;
+
+    public MultiEnemyManager EnsureMultiEnemyManager()
+    {
+        if (_multiEnemyManager == null)
+            _multiEnemyManager = GetComponent<MultiEnemyManager>();
+        if (_multiEnemyManager == null)
+            _multiEnemyManager = gameObject.AddComponent<MultiEnemyManager>();
+        return _multiEnemyManager;
+    }
 
     void Awake()
     {
         EnsureGameManager();
+        _multiEnemyManager = GetComponent<MultiEnemyManager>();
         CacheComponents();
 
         // 从 GameManager 读取角色状态到战斗组件
@@ -263,6 +280,7 @@ public class BattleManager : MonoBehaviour
     private void OnTurnStarted(int turn)
     {
         _cardEffectResolver?.ClearElementAttachmentAtTurnStart();
+        _playerState?.TickVulnerable();
 
         if (_playerState != null)
         {
@@ -297,20 +315,47 @@ public class BattleManager : MonoBehaviour
 
     private void OnPoisonTickPhase()
     {
-        if (_enemyState == null || _enemyHP == null) return;
-
-        int poisonDamage = _enemyState.TriggerPoisonTick();
-        if (poisonDamage > 0)
+        if (_multiEnemyManager != null)
         {
-            _enemyHP.TakeDamage(poisonDamage);
-            LogBattleEvent($"中毒结算：造成 {poisonDamage} 点伤害，剩余中毒 {_enemyState.PoisonStacks}。");
-            OnBattleInfoChanged?.Invoke();
-
-            if (_enemyHP.CurrentHP <= 0)
+            foreach (EnemyUnit enemy in _multiEnemyManager.GetAliveEnemies())
             {
+                if (enemy.state == null) continue;
+
+                int poisonDamage = enemy.state.TriggerPoisonTick();
+                if (poisonDamage <= 0) continue;
+
+                enemy.DealDamage(poisonDamage);
+                LogBattleEvent($"{enemy.DisplayName} 中毒结算：受到 {poisonDamage} 点伤害，剩余中毒 {enemy.state.PoisonStacks}。");
+            }
+
+            if (_multiEnemyManager.AllDead)
                 EndBattle("win");
+        }
+        else if (_enemyState != null && _enemyHP != null)
+        {
+            int poisonDamage = _enemyState.TriggerPoisonTick();
+            if (poisonDamage > 0)
+            {
+                _enemyHP.TakeDamage(poisonDamage);
+                LogBattleEvent($"敌方中毒结算：造成 {poisonDamage} 点伤害，剩余中毒 {_enemyState.PoisonStacks}。");
+                if (_enemyHP.CurrentHP <= 0)
+                    EndBattle("win");
             }
         }
+
+        if (_playerState != null && _playerHP != null)
+        {
+            int poisonDamage = _playerState.TickPoison();
+            if (poisonDamage > 0)
+            {
+                _playerHP.TakeDamage(poisonDamage);
+                LogBattleEvent($"我方中毒结算：受到 {poisonDamage} 点伤害，剩余中毒 {_playerState.PoisonStacks}。");
+                if (_playerHP.CurrentHP <= 0)
+                    EndBattle("lose");
+            }
+        }
+
+        OnBattleInfoChanged?.Invoke();
     }
 
     private void OnEnemyTurnStart()
@@ -322,7 +367,10 @@ public class BattleManager : MonoBehaviour
     private void OnEnemyTurnEnd()
     {
         // 决定下一次意图，供玩家在己方回合查看
-        _enemyController?.DecideNextIntent();
+        if (_multiEnemyManager != null)
+            _multiEnemyManager.AllDecideNextIntent();
+        else
+            _enemyController?.DecideNextIntent();
 
         // 通知 UI 更新（包含意图文字）
         OnBattleInfoChanged?.Invoke();
@@ -338,7 +386,17 @@ public class BattleManager : MonoBehaviour
             yield break;
         }
 
-        if (_enemyController != null)
+        if (_multiEnemyManager != null)
+        {
+            foreach (EnemyUnit enemy in _multiEnemyManager.GetAliveEnemies())
+            {
+                if (enemy.controller == null || !enemy.controller.enabled) continue;
+
+                enemy.controller.ExecuteTurn();
+                LogBattleEvent($"{enemy.DisplayName} 执行 {enemy.controller.GetCurrentIntent()}（数值 {enemy.controller.GetIntentValue()}）。");
+            }
+        }
+        else if (_enemyController != null)
         {
             _enemyController.ExecuteTurn();
             LogBattleEvent($"敌人执行 {_enemyController.GetCurrentIntent()}（数值 {_enemyController.GetIntentValue()}）。");
@@ -368,6 +426,12 @@ public class BattleManager : MonoBehaviour
 
     public void DealDamageToEnemy(int damage)
     {
+        if (_multiEnemyManager != null)
+        {
+            DealDamageToTarget(_multiEnemyManager.DefaultTarget, damage);
+            return;
+        }
+
         if (_enemyHP == null || _isBattleOver) return;
 
         _enemyHP.TakeDamage(damage);
@@ -379,6 +443,27 @@ public class BattleManager : MonoBehaviour
         {
             EndBattle("win");
         }
+    }
+
+    /// <summary>
+    /// 多敌人模式下对指定敌人造成伤害；单敌人模式也允许直接结算该目标。
+    /// </summary>
+    public void DealDamageToTarget(EnemyUnit target, int damage)
+    {
+        if (target == null || damage <= 0 || _isBattleOver) return;
+
+        if (_multiEnemyManager != null)
+            _multiEnemyManager.DealDamageToTarget(target, damage);
+        else
+            target.DealDamage(damage);
+
+        LogBattleEvent($"{target.DisplayName} 受到 {damage} 点伤害，HP {target.hp?.CurrentHP ?? 0}/{target.hp?.MaxHP ?? 0}。");
+        OnBattleInfoChanged?.Invoke();
+
+        if (_multiEnemyManager != null && _multiEnemyManager.AllDead)
+            EndBattle("win");
+        else if (_multiEnemyManager == null && target.hp != null && target.hp.CurrentHP <= 0)
+            EndBattle("win");
     }
 
     public void PlayCard(CardData cardData)
@@ -400,12 +485,23 @@ public class BattleManager : MonoBehaviour
 
     public void PlayCard(CardInstance cardInstance, ElementType chosenElement)
     {
+        PlayCard(cardInstance, chosenElement, null);
+    }
+
+    public void PlayCard(CardInstance cardInstance, ElementType chosenElement, EnemyUnit target)
+    {
         if (_isBattleOver) return;
         if (_turnManager == null || _turnManager.CurrentPhase != BattlePhase.PlayerAction) return;
         if (_deckManager == null || cardInstance == null || !_deckManager.handCards.Contains(cardInstance)) return;
 
         CardData cardData = cardInstance.GetCardData();
         if (cardData == null) return;
+
+        if (RequiresTargetSelection(cardData) && (target == null || !target.IsAlive))
+        {
+            LogBattleEvent("请选择一个存活敌人作为攻击目标。");
+            return;
+        }
 
         if (!CanAffordCard(cardInstance))
         {
@@ -417,7 +513,7 @@ public class BattleManager : MonoBehaviour
         SpendWaterCost(cardInstance);
 
         LogBattleEvent($"打出 {cardData.cardName}{(cardInstance.isUpgraded ? "+" : string.Empty)}。");
-        _cardEffectResolver?.ResolveEffect(cardInstance, chosenElement);
+        _cardEffectResolver?.ResolveEffect(cardInstance, chosenElement, target);
         _deckManager.PlayCard(cardInstance);
 
         OnHandChanged?.Invoke();
@@ -482,6 +578,14 @@ public class BattleManager : MonoBehaviour
     public void EndBattle(string result)
     {
         if (_isBattleOver) return;
+
+        // 多敌人战斗必须清空所有敌人才能获胜，防止旧的单敌人结算路径提前结束战斗。
+        if (result == "win" && _multiEnemyManager != null && !_multiEnemyManager.AllDead)
+        {
+            LogBattleEvent($"仍有 {_multiEnemyManager.TotalAliveCount} 个敌人存活，战斗继续。");
+            return;
+        }
+
         _isBattleOver = true;
 
         if (_turnManager != null)
@@ -490,12 +594,26 @@ public class BattleManager : MonoBehaviour
         Debug.Log($"[BattleManager] EndBattle({result}), isBattleWin即将设为{result == "win"}，GameManager.Instance={(GameManager.Instance != null ? "存在" : "为空")}");
 
         SyncGameManagerBattleResult(result);
-        if (result == "lose")
-            ChallengeRunTracker.EnsureExists().EndRun(false);
+
+        if (GameManager.Instance != null)
+        {
+            if (result == "win")
+                GameManager.Instance.currentDraftMode = GameManager.DraftMode.BattleReward;
+
+            bool isFinalVictory = result == "win"
+                && GameManager.Instance.currentNodeId == GameManager.NodesPerFloor;
+            if (result == "lose" || isFinalVictory)
+                RunFlowCoordinator.EndRunFromBattle(result == "win");
+        }
+
         OnBattleOver?.Invoke(result);
         LogBattleEvent(result == "win" ? "战斗胜利。" : "战斗失败。");
 
-        if (result == "win" && _returnToMapOnWin && GameManager.Instance != null && !_returningToMap)
+        if (result == "win"
+            && _returnToMapOnWin
+            && GameManager.Instance != null
+            && GameManager.Instance.currentNodeId < GameManager.NodesPerFloor
+            && !_returningToMap)
         {
             StartCoroutine(ReturnToMapAfterDelay());
         }
@@ -533,7 +651,15 @@ public class BattleManager : MonoBehaviour
     {
         _returningToMap = true;
         yield return new WaitForSeconds(_returnToMapDelay);
+
+        // 新增：设置选牌场景的工作模式为战斗奖励
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.currentDraftMode = GameManager.DraftMode.BattleReward;
+        }
+
         SceneManager.LoadScene(_rewardSceneName);
+
     }
 
     public void LogBattleEvent(string message)
@@ -568,23 +694,183 @@ public class BattleManager : MonoBehaviour
 
         var gm = GameManager.Instance;
 
-        // Boss 判断：有 GameManager 时读节点类型；无则随机
+        // 根据地图节点类型选择对应怪物池。
         bool isBoss = gm != null && gm.currentNodeType == "Boss";
+        bool isElite = gm != null && gm.currentNodeType == "Elite";
 
         if (isBoss && _bossEnemyData != null)
         {
-            _enemyController.SetEnemyData(_bossEnemyData);
+            ConfigureEnemyController(_bossEnemyData);
+        }
+        else if (isElite && _eliteEnemyPool != null && _eliteEnemyPool.Length > 0)
+        {
+            int index = UnityEngine.Random.Range(0, _eliteEnemyPool.Length);
+            ConfigureEliteEncounter(_eliteEnemyPool[index]);
         }
         else if (_normalEnemyPool != null && _normalEnemyPool.Length > 0)
         {
             int index = UnityEngine.Random.Range(0, _normalEnemyPool.Length);
-            _enemyController.SetEnemyData(_normalEnemyPool[index]);
+            ConfigureEnemyController(_normalEnemyPool[index]);
         }
         else if (_bossEnemyData != null)
         {
             // 兜底：没有普通敌人池时用 Boss
-            _enemyController.SetEnemyData(_bossEnemyData);
+            ConfigureEnemyController(_bossEnemyData);
         }
+    }
+
+    private void ConfigureEnemyController(EnemyData data)
+    {
+        if (data == null || _enemyObject == null) return;
+
+        EnemyController controller = ConfigureEnemyObject(_enemyObject, data);
+        if (controller == null) return;
+
+        _enemyController = controller;
+
+        if (data.enemyName == "我的刀盾")
+            EnableDaoDunEncounter(data);
+        else if (data.enemyName == "疯狂戴夫")
+        {
+            EnsureMultiEnemyManager().RegisterEnemy(_enemyObject, data);
+        }
+    }
+
+    private void ConfigureEliteEncounter(EnemyData encounterData)
+    {
+        if (encounterData != null && encounterData.enemyName == "奶龙大军")
+        {
+            EnableNaiLongArmyEncounter();
+            return;
+        }
+
+        ConfigureEnemyController(encounterData);
+    }
+
+    private EnemyController ConfigureEnemyObject(GameObject enemyObject, EnemyData data)
+    {
+        if (enemyObject == null || data == null) return null;
+
+        System.Type targetType = GetMonsterControllerType(data.enemyName);
+        EnemyController selected = null;
+        foreach (EnemyController controller in enemyObject.GetComponents<EnemyController>())
+        {
+            if (controller.GetType() == targetType)
+            {
+                selected = controller;
+                controller.enabled = true;
+            }
+            else
+            {
+                controller.enabled = false;
+            }
+        }
+
+        if (selected == null)
+            selected = (EnemyController)enemyObject.AddComponent(targetType);
+
+        selected.SetEnemyData(data);
+        enemyObject.GetComponent<EnemyIntentUI>()?.SetController(selected);
+        return selected;
+    }
+
+    public bool RequiresTargetSelection(CardData cardData)
+    {
+        return cardData != null
+            && cardData.HasCardType(CardType.Attack)
+            && _multiEnemyManager != null
+            && _multiEnemyManager.GetAliveEnemies().Count > 1;
+    }
+
+    private void EnableDaoDunEncounter(EnemyData data)
+    {
+        if (_isDaoDunEncounter || _enemyObject == null) return;
+
+        _multiEnemyManager = GetComponent<MultiEnemyManager>();
+        if (_multiEnemyManager == null)
+            _multiEnemyManager = gameObject.AddComponent<MultiEnemyManager>();
+
+        Vector3 center = _enemyObject.transform.position;
+        float spacing = 3f;
+
+        _enemyObject.transform.position = center + Vector3.left * spacing;
+        _multiEnemyManager.RegisterEnemy(_enemyObject, data);
+
+        for (int i = 1; i < 3; i++)
+        {
+            GameObject clone = Instantiate(_enemyObject,
+                center + Vector3.right * spacing * (i - 1),
+                _enemyObject.transform.rotation);
+            clone.name = data.enemyName;
+
+            EnemyUnit unit = EnemyUnit.FromGameObject(clone, data);
+            unit?.controller?.SetEnemyData(data);
+            _multiEnemyManager.RegisterEnemy(clone, data);
+        }
+
+        _isDaoDunEncounter = true;
+        LogBattleEvent("遭遇我的刀盾 x3。每只独立随机攻击或格挡。");
+    }
+
+    private void EnableNaiLongArmyEncounter()
+    {
+        if (_isNaiLongArmyEncounter || _enemyObject == null) return;
+        if (_naiLongArmyMembers == null || _naiLongArmyMembers.Length != 3)
+        {
+            Debug.LogError("[BattleManager] 奶龙大军需要依次配置可爱奶龙、大奶龙、奶蝠三份 Data。");
+            return;
+        }
+
+        _multiEnemyManager = GetComponent<MultiEnemyManager>();
+        if (_multiEnemyManager == null)
+            _multiEnemyManager = gameObject.AddComponent<MultiEnemyManager>();
+
+        Vector3 center = _enemyObject.transform.position;
+        const float spacing = 3f;
+        GameObject[] armyObjects = new GameObject[3];
+        armyObjects[0] = _enemyObject;
+
+        for (int i = 1; i < armyObjects.Length; i++)
+            armyObjects[i] = Instantiate(_enemyObject, center, _enemyObject.transform.rotation);
+
+        for (int i = 0; i < armyObjects.Length; i++)
+        {
+            EnemyData memberData = _naiLongArmyMembers[i];
+            if (memberData == null) continue;
+
+            GameObject memberObject = armyObjects[i];
+            memberObject.transform.position = center + Vector3.right * spacing * (i - 1);
+            memberObject.name = memberData.enemyName;
+
+            EnemyController controller = ConfigureEnemyObject(memberObject, memberData);
+            if (i == 0)
+                _enemyController = controller;
+
+            _multiEnemyManager.RegisterEnemy(memberObject, memberData);
+        }
+
+        _isNaiLongArmyEncounter = true;
+        LogBattleEvent("遭遇精英：奶龙大军（可爱奶龙、大奶龙、奶蝠）。");
+    }
+
+    private System.Type GetMonsterControllerType(string enemyName)
+    {
+        return enemyName switch
+        {
+            "咕咕嘎嘎" => typeof(GuGuGaGa),
+            "我的刀盾" => typeof(WoDeDaoDun),
+            "你已急哭" => typeof(NiYiJiKu),
+            "刘华强" => typeof(LiuHuaQiang),
+            "爻一爻" => typeof(YaoYiYao),
+            "带派雨姐" => typeof(DaiPaiYuJie),
+            "川普" => typeof(ChuanPu),
+            "可爱奶龙" => typeof(KeAiNaiLong),
+            "大奶龙" => typeof(DaNaiLong),
+            "奶蝠" => typeof(NaiFu),
+            "疯狂星期四" => typeof(FengKuangXingQiSi),
+            "疯狂戴夫" => typeof(FengKuangDaiFu),
+            _ => typeof(EnemyController)
+        };
     }
 
     /// <summary>

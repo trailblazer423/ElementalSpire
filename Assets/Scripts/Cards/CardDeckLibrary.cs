@@ -10,6 +10,22 @@ namespace ElementalSpire.Cards
         public const string Precious = "珍贵";
         public const string Basic = "基础";
 
+        /// <summary>
+        /// 根据卡牌ID获取卡牌数据
+        /// </summary>
+        public static CardData GetCardDataById(string cardId)
+        {
+            // 合并所有牌池查找（如果有全局allCards列表直接查更高效）
+            var allCards = GetInitialDraftPool(ElementType.Fire, ElementType.Water)
+                .Concat(GetBattleRewardPool(ElementType.Fire, 1))
+                .Concat(GetBattleRewardPool(ElementType.Poison, 1))
+                .Concat(GetBattleRewardPool(ElementType.Water, 1))
+                .GroupBy(c => c.cardId)
+                .Select(g => g.First());
+
+            return allCards.FirstOrDefault(c => c.cardId == cardId);
+        }
+
         private static readonly List<CardData> cardDataList = new List<CardData>
         {
             CreateCard("starter_strike", 0, ElementType.Colorless, "无色打击", "基础", CardType.Attack, 1, 0, "造成6点伤害。", "造成9点伤害。", -1, -1, false, false, true, false, "", new[] { "打击" }),

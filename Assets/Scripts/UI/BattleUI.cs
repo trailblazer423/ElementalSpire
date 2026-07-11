@@ -608,7 +608,18 @@ public class BattleUI : MonoBehaviour
 
         if (_lastBattleResult == "win")
         {
-            SceneManager.LoadScene("CardDraftScene");
+            bool isFinalVictory = GameManager.Instance != null
+                && GameManager.Instance.currentNodeId == GameManager.NodesPerFloor;
+            if (isFinalVictory)
+            {
+                SceneManager.LoadScene("MainMenuScene");
+            }
+            else
+            {
+                if (GameManager.Instance != null)
+                    GameManager.Instance.currentDraftMode = GameManager.DraftMode.BattleReward;
+                SceneManager.LoadScene("CardDraftScene");
+            }
         }
         else
         {

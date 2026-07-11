@@ -254,7 +254,7 @@ GameObject:
   - component: {fileID: 415110004}
   m_Layer: 0
   m_Name: Player
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -357,10 +357,6 @@ MonoBehaviour:
   _waterResonanceActive: 0
   _triCoreLimit: 0
   _triCoreUsed: 0
-  _poisonStacks: 0
-  _weakness: 0
-  _vulnerable: 0
-  _nextTurnEnergyPenalty: 0
 --- !u!1 &468120968
 GameObject:
   m_ObjectHideFlags: 0
@@ -379,7 +375,7 @@ GameObject:
   - component: {fileID: 468120977}
   m_Layer: 0
   m_Name: Enemy
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -450,8 +446,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   poisonStacks: 0
-  power: 0
-  weakness: 0
   elementAttachment: 0
   deepPoison: 0
 --- !u!114 &468120974
@@ -911,18 +905,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 20c00de32d8b478439a1f2a38297a9cb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _playerObject: {fileID: 415109997}
-  _enemyObject: {fileID: 468120968}
-  _normalEnemyPool:
-  - {fileID: 11400000, guid: 1702e29ed0e8bab4bbb9450cf15c0842, type: 2}
-  - {fileID: 11400000, guid: e596de2a4cc6b884cb481a55562905fb, type: 2}
-  - {fileID: 11400000, guid: abde3fd4b9fc3ae4e80781c464f9fb1d, type: 2}
-  - {fileID: 11400000, guid: 0bace4cc6172ef84ca0d70295b287894, type: 2}
-  - {fileID: 11400000, guid: 22faaf4922f0ad0428b14e05a36848c7, type: 2}
-  - {fileID: 11400000, guid: 39d7397930c4f65448835640269b119a, type: 2}
-  - {fileID: 11400000, guid: 2f6e4d8b7a9c4f0a8b6d1e3c5f7a9b2d, type: 2}
-  _bossEnemyData: {fileID: 11400000, guid: d7a9a29b2af2e8b4799df0dfc0cd3eac, type: 2}
-  _startingDeck: 1
+  _playerObject: {fileID: 0}
+  _enemyObject: {fileID: 0}
+  _normalEnemyPool: []
+  _bossEnemyData: {fileID: 0}
+  _startingDeck: 4
   _useDemoMixedDeck: 1
   _returnToMapOnWin: 0
   _mapSceneName: MapScene

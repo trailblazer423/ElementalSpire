@@ -24,7 +24,7 @@ public class FengKuangXingQiSi : EnemyController
         {
             // 回合4：疯狂星期四
             _burstCount++;
-            int damage = 50 + 50 * (_burstCount - 1);
+            int damage = 25 + 25 * (_burstCount - 1);
             currentIntent = EnemyIntent.Attack;
             intentValue = damage;
             intentDescription = "爆发！";

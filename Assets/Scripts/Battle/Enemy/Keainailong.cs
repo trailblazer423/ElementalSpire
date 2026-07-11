@@ -13,8 +13,11 @@ public class KeAiNaiLong : EnemyController
 
     protected override void ExecuteIntent()
     {
-        foreach (EnemyController enemy in FindObjectsOfType<EnemyController>())
-            enemy.GetComponent<enemyBlock>()?.AddBlock(intentValue);
+        MultiEnemyManager multiEnemyManager = FindObjectOfType<MultiEnemyManager>();
+        if (multiEnemyManager != null)
+            multiEnemyManager.AddBlockToAll(intentValue);
+        else
+            _enemyBlock?.AddBlock(intentValue);
         Debug.Log($"{enemyData.enemyName} 大肚肚！给全体上 {intentValue} 点护盾");
     }
 }

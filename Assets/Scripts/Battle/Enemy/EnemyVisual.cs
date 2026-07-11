@@ -13,6 +13,13 @@ public class EnemyVisual : MonoBehaviour
         GenerateSprite();
     }
 
+    /// <summary>供运行时生成的敌人设置外观颜色。</summary>
+    public void SetColor(Color color)
+    {
+        _color = color;
+        GenerateSprite();
+    }
+
     private void GenerateSprite()
     {
         Texture2D texture = new Texture2D(_textureSize, _textureSize);

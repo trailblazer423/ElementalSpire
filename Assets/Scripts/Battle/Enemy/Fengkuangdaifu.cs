@@ -1,136 +1,216 @@
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 /// <summary>
-/// 疯狂戴夫 - Boss，管理3个植物，按顺序复活
+/// 疯狂戴夫：与三株植物共同组成 Boss 遭遇。
+/// 三株植物存活时施加 1 层虚弱；任一植物死亡时，戴夫消耗 40 HP 补种。
 /// </summary>
 public class FengKuangDaiFu : EnemyController
 {
-    [Header("植物预制体")]
-    public GameObject wanDouSheShouPrefab;
-    public GameObject jianGuoPrefab;
-    public GameObject xiangRiKuiPrefab;
+    private const int RespawnCost = 40;
+    private const int WeaknessAmount = 1;
 
-    private List<GameObject> _plants = new List<GameObject>();
+    private readonly List<GameObject> _plants = new List<GameObject>();
+    private BattleManager _battleManager;
+    private MultiEnemyManager _multiEnemyManager;
+    private bool _plantsSpawned;
 
     protected override void Start()
     {
-        base.Start();  // 缓存组件 + 设置HP/data（来自EnemyController）
+        base.Start();
+        _battleManager = FindObjectOfType<BattleManager>();
+        _multiEnemyManager = _battleManager?.EnsureMultiEnemyManager();
         SpawnAllPlants();
-    }
-
-    void SpawnAllPlants()
-    {
-        // 按顺序生成：坚果（左）→ 豌豆射手（中）→ 向日葵（右）
-        if (jianGuoPrefab != null)
-        {
-            GameObject plant = Instantiate(jianGuoPrefab, transform.position + new Vector3(-2.5f, 0, 0), Quaternion.identity);
-            plant.name = "坚果";
-            _plants.Add(plant);
-        }
-        if (wanDouSheShouPrefab != null)
-        {
-            GameObject plant = Instantiate(wanDouSheShouPrefab, transform.position + new Vector3(0, 0, 0), Quaternion.identity);
-            plant.name = "豌豆射手";
-            _plants.Add(plant);
-        }
-        if (xiangRiKuiPrefab != null)
-        {
-            GameObject plant = Instantiate(xiangRiKuiPrefab, transform.position + new Vector3(2.5f, 0, 0), Quaternion.identity);
-            plant.name = "向日葵";
-            _plants.Add(plant);
-        }
-        Debug.Log($"疯狂戴夫 召唤了 {_plants.Count} 个植物！");
+        _plantsSpawned = true;
+        DecideNextIntent();
     }
 
     protected override void DecideIntent()
     {
-        CheckAndRespawnPlants();
-
-        // 检查是否所有植物都活着
-        bool allAlive = true;
-        foreach (var plant in _plants)
+        if (!_plantsSpawned)
         {
-            if (plant == null) { allAlive = false; break; }
+            currentIntent = EnemyIntent.None;
+            intentValue = 0;
+            intentDescription = "准备花盆";
+            return;
         }
 
-        if (allAlive)
+        bool respawned = RespawnOneMissingPlant();
+        if (!AreAllPlantsAlive())
         {
-            currentIntent = EnemyIntent.Debuff;
-            intentValue = 1;
-            intentDescription = $"全体虚弱+{intentValue}";
-            Debug.Log("疯狂戴夫：植物全活，上虚弱");
+            currentIntent = EnemyIntent.None;
+            intentValue = 0;
+            intentDescription = _enemyHP != null && _enemyHP.CurrentHP < RespawnCost ? "生命不足，无法补种" : "补种植物";
+            return;
         }
-        else
-        {
-            currentIntent = EnemyIntent.Attack;
-            intentValue = 8;
-            intentDescription = "";
-            Debug.Log("疯狂戴夫：有植物死亡，攻击");
-        }
-    }
 
-    void CheckAndRespawnPlants()
-    {
-        // 清理已死亡的植物
-        _plants.RemoveAll(p => p == null);
-
-        // 检查缺失的植物（按顺序：坚果 → 豌豆射手 → 向日葵）
-        bool hasJianGuo = _plants.Exists(p => p != null && p.name == "坚果");
-        bool hasWanDou = _plants.Exists(p => p != null && p.name == "豌豆射手");
-        bool hasXiangRiKui = _plants.Exists(p => p != null && p.name == "向日葵");
-
-        // 按优先级复活
-        if (!hasJianGuo && _enemyHP.CurrentHP >= 40)
-        {
-            RespawnPlant(jianGuoPrefab, "坚果", new Vector3(-2.5f, 0, 0));
-        }
-        else if (!hasWanDou && _enemyHP.CurrentHP >= 40)
-        {
-            RespawnPlant(wanDouSheShouPrefab, "豌豆射手", new Vector3(0, 0, 0));
-        }
-        else if (!hasXiangRiKui && _enemyHP.CurrentHP >= 40)
-        {
-            RespawnPlant(xiangRiKuiPrefab, "向日葵", new Vector3(2.5f, 0, 0));
-        }
-    }
-
-    void RespawnPlant(GameObject prefab, string name, Vector3 position)
-    {
-        if (prefab == null) return;
-        _enemyHP.TakeDamage(40);
-        GameObject newPlant = Instantiate(prefab, transform.position + position, Quaternion.identity);
-        newPlant.name = name;
-        _plants.Add(newPlant);
-
-        Debug.Log($"疯狂戴夫 消耗40HP复活 {name}！剩余HP {_enemyHP.CurrentHP}");
-    }
-
-    public List<GameObject> GetPlants()
-    {
-        return _plants;
+        currentIntent = EnemyIntent.Debuff;
+        intentValue = WeaknessAmount;
+        intentDescription = respawned ? "补种后 Wabibabu：虚弱+1" : "Wabibabu：虚弱+1";
     }
 
     protected override void ExecuteIntent()
     {
-        switch (currentIntent)
+        if (currentIntent != EnemyIntent.Debuff || _playerState == null)
+            return;
+
+        // 植物会在玩家回合中死亡；敌方行动开始前再次检查，确保本回合立即补种。
+        if (!AreAllPlantsAlive())
         {
-            case EnemyIntent.Debuff:
-                if (_playerState != null)
-                {
-                    _playerState.AddWeakness(intentValue);
-                    Debug.Log($"疯狂戴夫 Wabibabu！全体虚弱 {intentValue} 层，当前虚弱 {_playerState.Weakness}/5");
-                }
-                break;
-
-            case EnemyIntent.Attack:
-                _playerHP.TakeDamage(intentValue);
-                Debug.Log($"疯狂戴夫 攻击！造成 {intentValue} 点伤害");
-                break;
-
-            default:
-                base.ExecuteIntent();
-                break;
+            RespawnOneMissingPlant();
+            if (!AreAllPlantsAlive())
+                return;
         }
+
+        _playerState.AddWeakness(intentValue);
+        Debug.Log($"疯狂戴夫 Wabibabu！玩家虚弱 +{intentValue}。");
+    }
+
+    private void SpawnAllPlants()
+    {
+        SpawnPlant(PlantSlot.Peashooter);
+        SpawnPlant(PlantSlot.Wallnut);
+        SpawnPlant(PlantSlot.Sunflower);
+    }
+
+    private bool RespawnOneMissingPlant()
+    {
+        RemoveDeadPlantReferences();
+
+        foreach (PlantSlot slot in new[] { PlantSlot.Peashooter, PlantSlot.Wallnut, PlantSlot.Sunflower })
+        {
+            if (HasAlivePlant(slot))
+                continue;
+
+            if (_enemyHP == null || _enemyHP.CurrentHP < RespawnCost)
+                return false;
+
+            _enemyHP.TakeDamage(RespawnCost);
+            SpawnPlant(slot);
+            Debug.Log($"疯狂戴夫消耗 {RespawnCost} HP，补种 {GetPlantData(slot).enemyName}。");
+            return true;
+        }
+
+        return false;
+    }
+
+    private void SpawnPlant(PlantSlot slot)
+    {
+        EnemyData data = GetPlantData(slot);
+        if (data == null)
+        {
+            Debug.LogError($"[疯狂戴夫] 找不到 {slot} 的 EnemyData。");
+            return;
+        }
+
+        GameObject plant = new GameObject(data.enemyName);
+        plant.transform.position = transform.position + GetPlantOffset(slot);
+
+        // 植物由运行时创建，必须补齐可渲染节点；根物体位于战斗逻辑层（z = -10），
+        // 子节点放到与主敌人相同的显示层（z = 0）。
+        GameObject body = new GameObject("Body", typeof(SpriteRenderer), typeof(EnemyVisual));
+        body.transform.SetParent(plant.transform, false);
+        body.transform.localPosition = new Vector3(0f, 0f, 10f);
+        body.transform.localScale = GetPlantVisualScale(slot);
+        body.GetComponent<SpriteRenderer>().sortingOrder = 1;
+        body.GetComponent<EnemyVisual>().SetColor(GetPlantColor(slot));
+
+        plant.AddComponent<enemyMaxHP>();
+        plant.AddComponent<enemyBlock>();
+        plant.AddComponent<enemyHP>();
+        plant.AddComponent<EnemyState>();
+
+        EnemyController controller = plant.AddComponent(GetPlantControllerType(slot)) as EnemyController;
+        EnemyIntentUI intentUi = plant.AddComponent<EnemyIntentUI>();
+        controller.SetEnemyData(data);
+        intentUi.SetController(controller);
+
+        _plants.Add(plant);
+        _multiEnemyManager?.RegisterEnemy(plant, data);
+        _battleManager?.NotifyBattleInfoChanged();
+    }
+
+    private void RemoveDeadPlantReferences()
+    {
+        _plants.RemoveAll(plant =>
+        {
+            bool dead = plant == null || plant.GetComponent<enemyHP>() == null || plant.GetComponent<enemyHP>().CurrentHP <= 0;
+            if (dead && plant != null)
+                Destroy(plant);
+            return dead;
+        });
+    }
+
+    private bool AreAllPlantsAlive()
+    {
+        return HasAlivePlant(PlantSlot.Peashooter)
+            && HasAlivePlant(PlantSlot.Wallnut)
+            && HasAlivePlant(PlantSlot.Sunflower);
+    }
+
+    private bool HasAlivePlant(PlantSlot slot)
+    {
+        string plantName = GetPlantData(slot)?.enemyName;
+        return _plants.Exists(plant => plant != null
+            && plant.name == plantName
+            && plant.GetComponent<enemyHP>() != null
+            && plant.GetComponent<enemyHP>().CurrentHP > 0);
+    }
+
+    private EnemyData GetPlantData(PlantSlot slot)
+    {
+        string resourceName = slot switch
+        {
+            PlantSlot.Peashooter => "WandousheshouData",
+            PlantSlot.Wallnut => "JianguoData",
+            _ => "XiangrikuiData"
+        };
+        return Resources.Load<EnemyData>("EnemyData/" + resourceName);
+    }
+
+    private static Vector3 GetPlantOffset(PlantSlot slot)
+    {
+        return slot switch
+        {
+            PlantSlot.Wallnut => new Vector3(-2.5f, 0f, 0f),
+            PlantSlot.Peashooter => Vector3.zero,
+            _ => new Vector3(2.5f, 0f, 0f)
+        };
+    }
+
+    private static System.Type GetPlantControllerType(PlantSlot slot)
+    {
+        return slot switch
+        {
+            PlantSlot.Peashooter => typeof(WanDouSheShou),
+            PlantSlot.Wallnut => typeof(JianGuo),
+            _ => typeof(XiangRiKui)
+        };
+    }
+
+    private static Color GetPlantColor(PlantSlot slot)
+    {
+        return slot switch
+        {
+            PlantSlot.Peashooter => new Color(0.25f, 0.8f, 0.3f),
+            PlantSlot.Wallnut => new Color(0.58f, 0.32f, 0.13f),
+            _ => new Color(1f, 0.78f, 0.08f)
+        };
+    }
+
+    private static Vector3 GetPlantVisualScale(PlantSlot slot)
+    {
+        return slot == PlantSlot.Wallnut
+            ? new Vector3(2.4f, 2.4f, 1f)
+            : new Vector3(2f, 2f, 1f);
+    }
+
+    public List<GameObject> GetPlants() => _plants;
+
+    private enum PlantSlot
+    {
+        Peashooter,
+        Wallnut,
+        Sunflower
     }
 }

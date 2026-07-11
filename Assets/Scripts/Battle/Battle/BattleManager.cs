@@ -490,12 +490,26 @@ public class BattleManager : MonoBehaviour
         Debug.Log($"[BattleManager] EndBattle({result}), isBattleWin即将设为{result == "win"}，GameManager.Instance={(GameManager.Instance != null ? "存在" : "为空")}");
 
         SyncGameManagerBattleResult(result);
-        if (result == "lose")
-            ChallengeRunTracker.EnsureExists().EndRun(false);
+
+        if (GameManager.Instance != null)
+        {
+            if (result == "win")
+                GameManager.Instance.currentDraftMode = GameManager.DraftMode.BattleReward;
+
+            bool isFinalVictory = result == "win"
+                && GameManager.Instance.currentNodeId == GameManager.NodesPerFloor;
+            if (result == "lose" || isFinalVictory)
+                RunFlowCoordinator.EndRunFromBattle(result == "win");
+        }
+
         OnBattleOver?.Invoke(result);
         LogBattleEvent(result == "win" ? "战斗胜利。" : "战斗失败。");
 
-        if (result == "win" && _returnToMapOnWin && GameManager.Instance != null && !_returningToMap)
+        if (result == "win"
+            && _returnToMapOnWin
+            && GameManager.Instance != null
+            && GameManager.Instance.currentNodeId < GameManager.NodesPerFloor
+            && !_returningToMap)
         {
             StartCoroutine(ReturnToMapAfterDelay());
         }

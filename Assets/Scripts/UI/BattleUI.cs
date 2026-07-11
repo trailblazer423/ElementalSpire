@@ -1183,6 +1183,12 @@ public class BattleUI : MonoBehaviour
         var multiMgr = _battleManager?.MultiEnemyManager;
         if (multiMgr == null) return;
 
+        // 戴夫会在本体初始化完成后再动态召唤植物。若敌人列表发生变化，
+        // 必须重建面板，不能沿用只包含本体的旧面板。
+        var aliveEnemies = multiMgr.GetAliveEnemies();
+        if (!DoesMultiEnemyPanelListMatch(aliveEnemies))
+            _multiEnemyUISetup = false;
+
         // 延迟初始化（等待敌人列表完成）
         if (!_multiEnemyUISetup || _multiEnemyPanels.Count == 0)
             SetupMultiEnemyUI();
@@ -1257,6 +1263,20 @@ public class BattleUI : MonoBehaviour
         }
 
         UpdateMultiEnemyTargetButtons();
+    }
+
+    private bool DoesMultiEnemyPanelListMatch(List<EnemyUnit> aliveEnemies)
+    {
+        if (!_multiEnemyUISetup || _multiEnemyPanels.Count != aliveEnemies.Count)
+            return false;
+
+        for (int i = 0; i < aliveEnemies.Count; i++)
+        {
+            if (_multiEnemyPanels[i] == null || _multiEnemyPanels[i].unit != aliveEnemies[i])
+                return false;
+        }
+
+        return true;
     }
 
     private void UpdateMultiEnemyTargetButtons()

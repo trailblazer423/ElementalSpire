@@ -795,6 +795,7 @@ MonoBehaviour:
   - {fileID: 8300000, guid: ff95c771e45080849a8ddaa152d4c989, type: 3}
   - {fileID: 8300000, guid: bfaf5b3c78edd964083131389a020119, type: 3}
   - {fileID: 8300000, guid: 24189a1a9aa3827499715f45636d6d1d, type: 3}
+  - {fileID: 8300000, guid: 24189a1a9aa3827499715f45636d6d1d, type: 3}
   playOnStart: 1
 --- !u!1 &497488329
 GameObject:

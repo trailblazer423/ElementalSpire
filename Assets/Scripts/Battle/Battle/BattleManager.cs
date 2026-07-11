@@ -16,7 +16,9 @@ public class BattleManager : MonoBehaviour
     [SerializeField] private GameObject _enemyObject;
 
     [Header("敌人配置")]
-    [SerializeField] private EnemyData[] _normalEnemyPool;  // 普通/精英敌人池
+    [SerializeField] private EnemyData[] _normalEnemyPool;
+    [SerializeField] private EnemyData[] _eliteEnemyPool;
+    [SerializeField] private EnemyData[] _naiLongArmyMembers;
     [SerializeField] private EnemyData _bossEnemyData;       // Boss 敌人数据
     [SerializeField] private GameObject _enemyPrefab;         // 多敌人模式生成用
 
@@ -44,6 +46,7 @@ public class BattleManager : MonoBehaviour
     private EnemyController _enemyController;
     private MultiEnemyManager _multiEnemyManager;
     private bool _isDaoDunEncounter;
+    private bool _isNaiLongArmyEncounter;
 
     private TurnManager _turnManager;
     private DeckManager _deckManager;
@@ -67,6 +70,15 @@ public class BattleManager : MonoBehaviour
     public EnemyState EnemyState => _enemyState;
     public MultiEnemyManager MultiEnemyManager => _multiEnemyManager;
     public bool IsBattleOver => _isBattleOver;
+
+    public MultiEnemyManager EnsureMultiEnemyManager()
+    {
+        if (_multiEnemyManager == null)
+            _multiEnemyManager = GetComponent<MultiEnemyManager>();
+        if (_multiEnemyManager == null)
+            _multiEnemyManager = gameObject.AddComponent<MultiEnemyManager>();
+        return _multiEnemyManager;
+    }
 
     void Awake()
     {
@@ -682,12 +694,18 @@ public class BattleManager : MonoBehaviour
 
         var gm = GameManager.Instance;
 
-        // Boss 判断：有 GameManager 时读节点类型；无则随机
+        // 根据地图节点类型选择对应怪物池。
         bool isBoss = gm != null && gm.currentNodeType == "Boss";
+        bool isElite = gm != null && gm.currentNodeType == "Elite";
 
         if (isBoss && _bossEnemyData != null)
         {
             ConfigureEnemyController(_bossEnemyData);
+        }
+        else if (isElite && _eliteEnemyPool != null && _eliteEnemyPool.Length > 0)
+        {
+            int index = UnityEngine.Random.Range(0, _eliteEnemyPool.Length);
+            ConfigureEliteEncounter(_eliteEnemyPool[index]);
         }
         else if (_normalEnemyPool != null && _normalEnemyPool.Length > 0)
         {
@@ -705,15 +723,55 @@ public class BattleManager : MonoBehaviour
     {
         if (data == null || _enemyObject == null) return;
 
-        EnemyController controller = CreateMonsterController(data.enemyName);
+        EnemyController controller = ConfigureEnemyObject(_enemyObject, data);
         if (controller == null) return;
 
-        controller.SetEnemyData(data);
         _enemyController = controller;
-        _enemyObject.GetComponent<EnemyIntentUI>()?.SetController(controller);
 
         if (data.enemyName == "我的刀盾")
             EnableDaoDunEncounter(data);
+        else if (data.enemyName == "疯狂戴夫")
+        {
+            EnsureMultiEnemyManager().RegisterEnemy(_enemyObject, data);
+        }
+    }
+
+    private void ConfigureEliteEncounter(EnemyData encounterData)
+    {
+        if (encounterData != null && encounterData.enemyName == "奶龙大军")
+        {
+            EnableNaiLongArmyEncounter();
+            return;
+        }
+
+        ConfigureEnemyController(encounterData);
+    }
+
+    private EnemyController ConfigureEnemyObject(GameObject enemyObject, EnemyData data)
+    {
+        if (enemyObject == null || data == null) return null;
+
+        System.Type targetType = GetMonsterControllerType(data.enemyName);
+        EnemyController selected = null;
+        foreach (EnemyController controller in enemyObject.GetComponents<EnemyController>())
+        {
+            if (controller.GetType() == targetType)
+            {
+                selected = controller;
+                controller.enabled = true;
+            }
+            else
+            {
+                controller.enabled = false;
+            }
+        }
+
+        if (selected == null)
+            selected = (EnemyController)enemyObject.AddComponent(targetType);
+
+        selected.SetEnemyData(data);
+        enemyObject.GetComponent<EnemyIntentUI>()?.SetController(selected);
+        return selected;
     }
 
     public bool RequiresTargetSelection(CardData cardData)
@@ -754,10 +812,50 @@ public class BattleManager : MonoBehaviour
         LogBattleEvent("遭遇我的刀盾 x3。每只独立随机攻击或格挡。");
     }
 
-    private EnemyController CreateMonsterController(string enemyName)
+    private void EnableNaiLongArmyEncounter()
     {
-        EnemyController current = _enemyController;
-        System.Type targetType = enemyName switch
+        if (_isNaiLongArmyEncounter || _enemyObject == null) return;
+        if (_naiLongArmyMembers == null || _naiLongArmyMembers.Length != 3)
+        {
+            Debug.LogError("[BattleManager] 奶龙大军需要依次配置可爱奶龙、大奶龙、奶蝠三份 Data。");
+            return;
+        }
+
+        _multiEnemyManager = GetComponent<MultiEnemyManager>();
+        if (_multiEnemyManager == null)
+            _multiEnemyManager = gameObject.AddComponent<MultiEnemyManager>();
+
+        Vector3 center = _enemyObject.transform.position;
+        const float spacing = 3f;
+        GameObject[] armyObjects = new GameObject[3];
+        armyObjects[0] = _enemyObject;
+
+        for (int i = 1; i < armyObjects.Length; i++)
+            armyObjects[i] = Instantiate(_enemyObject, center, _enemyObject.transform.rotation);
+
+        for (int i = 0; i < armyObjects.Length; i++)
+        {
+            EnemyData memberData = _naiLongArmyMembers[i];
+            if (memberData == null) continue;
+
+            GameObject memberObject = armyObjects[i];
+            memberObject.transform.position = center + Vector3.right * spacing * (i - 1);
+            memberObject.name = memberData.enemyName;
+
+            EnemyController controller = ConfigureEnemyObject(memberObject, memberData);
+            if (i == 0)
+                _enemyController = controller;
+
+            _multiEnemyManager.RegisterEnemy(memberObject, memberData);
+        }
+
+        _isNaiLongArmyEncounter = true;
+        LogBattleEvent("遭遇精英：奶龙大军（可爱奶龙、大奶龙、奶蝠）。");
+    }
+
+    private System.Type GetMonsterControllerType(string enemyName)
+    {
+        return enemyName switch
         {
             "咕咕嘎嘎" => typeof(GuGuGaGa),
             "我的刀盾" => typeof(WoDeDaoDun),
@@ -773,14 +871,6 @@ public class BattleManager : MonoBehaviour
             "疯狂戴夫" => typeof(FengKuangDaiFu),
             _ => typeof(EnemyController)
         };
-
-        if (current != null && current.GetType() == targetType)
-            return current;
-
-        if (current != null)
-            current.enabled = false;
-
-        return (EnemyController)_enemyObject.AddComponent(targetType);
     }
 
     /// <summary>

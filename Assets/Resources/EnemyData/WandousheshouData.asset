@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: WandousheshouData
   m_EditorClassIdentifier: 
   enemyName: "\u8C4C\u8C46\u5C04\u624B"
-  maxHP: 30
+  maxHP: 35
   baseAttack: 0
   baseDefend: 0
   enemyType: 0

@@ -231,17 +231,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1251493942}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-<<<<<<<< HEAD:Assets/Scenes/Battle/BattleScene.unity
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
-========
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 1613, y: 908}
->>>>>>>> 67e0e46f46e66203445ef3b09758a918232be3bb:Assets/Scenes/BattleScene/BattleScene1.unity
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &154813533
 MonoBehaviour:
@@ -605,7 +598,7 @@ GameObject:
   - component: {fileID: 415110004}
   m_Layer: 0
   m_Name: Player
-  m_TagString: Player
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -622,7 +615,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bed2205c74e4857498e08f048edcdf5a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxHP: 100
+  maxHP: 30
 --- !u!114 &415109999
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -708,10 +701,6 @@ MonoBehaviour:
   _waterResonanceActive: 0
   _triCoreLimit: 0
   _triCoreUsed: 0
-  _poisonStacks: 0
-  _weakness: 0
-  _vulnerable: 0
-  _nextTurnEnergyPenalty: 0
 --- !u!1 &468120968
 GameObject:
   m_ObjectHideFlags: 0
@@ -726,11 +715,9 @@ GameObject:
   - component: {fileID: 468120969}
   - component: {fileID: 468120973}
   - component: {fileID: 468120974}
-  - component: {fileID: 468120976}
-  - component: {fileID: 468120977}
   m_Layer: 0
   m_Name: Enemy
-  m_TagString: Enemy
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -801,8 +788,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   poisonStacks: 0
-  power: 0
-  weakness: 0
   elementAttachment: 0
   deepPoison: 0
 --- !u!114 &468120974
@@ -819,34 +804,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   attackDamage: 6
   defendAmount: 5
---- !u!114 &468120976
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 468120968}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3669937159c832c4bb0d6b3cd87210a3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  enemyData: {fileID: 0}
-  currentIntent: 5
-  intentValue: 0
-  intentDescription: 
---- !u!114 &468120977
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 468120968}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e20d3691ea584f444b60786bf06dcbdd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &691318124
 GameObject:
   m_ObjectHideFlags: 0
@@ -1208,13 +1165,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-<<<<<<<< HEAD:Assets/Scenes/Battle/BattleScene.unity
-  m_AnchoredPosition: {x: -400.5557, y: -50}
-  m_SizeDelta: {x: 600, y: 800}
-========
   m_AnchoredPosition: {x: -387, y: -30}
   m_SizeDelta: {x: 546.7909, y: 678.8454}
->>>>>>>> 67e0e46f46e66203445ef3b09758a918232be3bb:Assets/Scenes/BattleScene/BattleScene1.unity
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &808964405
 MonoBehaviour:
@@ -1236,11 +1188,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-<<<<<<<< HEAD:Assets/Scenes/Battle/BattleScene.unity
-  m_Sprite: {fileID: 21300000, guid: 38fe098352cdad740b94616f1cea313a, type: 3}
-========
   m_Sprite: {fileID: 21300000, guid: 033c1c3eb8437dc48966e06cdd7d55e8, type: 3}
->>>>>>>> 67e0e46f46e66203445ef3b09758a918232be3bb:Assets/Scenes/BattleScene/BattleScene1.unity
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -1808,29 +1756,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 20c00de32d8b478439a1f2a38297a9cb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _playerObject: {fileID: 0}
-  _enemyObject: {fileID: 0}
-  _normalEnemyPool:
-  - {fileID: 11400000, guid: 22faaf4922f0ad0428b14e05a36848c7, type: 2}
-  - {fileID: 11400000, guid: 1702e29ed0e8bab4bbb9450cf15c0842, type: 2}
-  - {fileID: 11400000, guid: e596de2a4cc6b884cb481a55562905fb, type: 2}
-  - {fileID: 11400000, guid: abde3fd4b9fc3ae4e80781c464f9fb1d, type: 2}
-  - {fileID: 11400000, guid: 0bace4cc6172ef84ca0d70295b287894, type: 2}
-  - {fileID: 11400000, guid: 39d7397930c4f65448835640269b119a, type: 2}
-  _eliteEnemyPool:
-  - {fileID: 11400000, guid: c6d91c0194793c54e8e61764ed0091e2, type: 2}
-  - {fileID: 11400000, guid: 5c21e7a94f314d8f8b62e917c34a5d10, type: 2}
-  _naiLongArmyMembers:
-  - {fileID: 11400000, guid: 3c6b294df6295834cbfdafeefbcfb9b1, type: 2}
-  - {fileID: 11400000, guid: 3218dabfb1526034dac3b9f97f54e7be, type: 2}
-  - {fileID: 11400000, guid: 4af285c0211af8540949b45c1d3a1f8b, type: 2}
-  _bossEnemyData: {fileID: 11400000, guid: d7a9a29b2af2e8b4799df0dfc0cd3eac, type: 2}
-  _enemyPrefab: {fileID: 0}
-  _startingDeck: 4
+  _playerObject: {fileID: 415109997}
+  _enemyObject: {fileID: 468120968}
+  _startingDeck: 1
   _useDemoMixedDeck: 1
   _returnToMapOnWin: 0
   _mapSceneName: MapScene
-  _rewardSceneName: CardDraftScene
   _returnToMapDelay: 1
 --- !u!1 &1532884584
 GameObject:
@@ -1912,7 +1843,7 @@ GameObject:
   - component: {fileID: 1694916899}
   - component: {fileID: 1694916898}
   m_Layer: 5
-  m_Name: EnemyPortrait
+  m_Name: "\u6211\u7684\u5200\u76FE"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1932,15 +1863,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1251493942}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMin: {x: 0.5, y: 0.42059475}
   m_AnchorMax: {x: 0.5, y: 0.5}
-<<<<<<<< HEAD:Assets/Scenes/Battle/BattleScene.unity
-  m_AnchoredPosition: {x: 428, y: -50}
-  m_SizeDelta: {x: 280, y: 299.19092}
-========
   m_AnchoredPosition: {x: 418, y: 20.278107}
   m_SizeDelta: {x: 280, y: 230.7471}
->>>>>>>> 67e0e46f46e66203445ef3b09758a918232be3bb:Assets/Scenes/BattleScene/BattleScene1.unity
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1694916898
 MonoBehaviour:
@@ -1962,7 +1888,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: e5c6060fe147e944cab9bcf5d2f779a5, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 222f25bd9159db649b1cf36088760cb5, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1

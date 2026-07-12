@@ -1,5 +1,9 @@
 fileFormatVersion: 2
+<<<<<<< HEAD
 guid: 38fe098352cdad740b94616f1cea313a
+=======
+guid: 033c1c3eb8437dc48966e06cdd7d55e8
+>>>>>>> 67e0e46f46e66203445ef3b09758a918232be3bb
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -102,13 +106,25 @@ TextureImporter:
     spriteID: 5e97eb03825dee720800000000000000
     internalID: 0
     vertices: []
+<<<<<<< HEAD
     indices:
+=======
+    indices: 
+>>>>>>> 67e0e46f46e66203445ef3b09758a918232be3bb
     edges: []
     weights: []
     secondaryTextures: []
     nameFileIdTable: {}
+<<<<<<< HEAD
   mipmapLimitGroupName:
   pSDRemoveMatte: 0
   userData:
   assetBundleName:
   assetBundleVariant:
+=======
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+>>>>>>> 67e0e46f46e66203445ef3b09758a918232be3bb

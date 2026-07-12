@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: NaifuData
   m_EditorClassIdentifier: 
   enemyName: "\u5976\u8760"
-  maxHP: 40
+  maxHP: 30
   baseAttack: 0
   baseDefend: 0
   enemyType: 0

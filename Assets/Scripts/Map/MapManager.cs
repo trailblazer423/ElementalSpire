@@ -70,7 +70,17 @@ public class MapManager : MonoBehaviour
         string nodeType = GetNodeType(nodeId);
         if (nodeType == "Event") return "EventScene";
         if (nodeType == "Rest") return "RestScene";
-        return "BattleScene";
+
+        // 随机结果同时决定战斗背景和敌人：BattleManager 会按场景名读取对应怪物。
+        if (nodeType == "Elite")
+            return UnityEngine.Random.value < 0.5f ? "BattleScene8" : "BattleScene9";
+
+        if (nodeType == "Boss")
+            return "BattleScene10";
+
+        // 普通怪场景：BattleScene（第 1 张）到 BattleScene7。
+        int normalSceneIndex = UnityEngine.Random.Range(1, 8);
+        return normalSceneIndex == 1 ? "BattleScene" : "BattleScene" + normalSceneIndex;
     }
 
     /// <summary>

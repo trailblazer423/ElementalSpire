@@ -39,7 +39,7 @@ public class FengKuangXingQiSi : EnemyController
                 if (_playerState != null)
                 {
                     _playerState.AddWeakness(intentValue);
-                    Debug.Log($"{enemyData.enemyName} 给你施加 {intentValue} 层虚弱！当前虚弱 {_playerState.Weakness}/5");
+                    Debug.Log($"{enemyData.enemyName} 给你施加 {intentValue} 层虚弱！当前虚弱 {_playerState.Weakness}/{PlayerState.MaxWeaknessStacks}");
                 }
                 break;
 

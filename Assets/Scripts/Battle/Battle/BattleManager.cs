@@ -694,6 +694,17 @@ public class BattleManager : MonoBehaviour
 
         var gm = GameManager.Instance;
 
+        // 多战斗场景机制：地图随机选中场景，场景名决定该场敌人，避免怪物与背景错配。
+        EnemyData fixedEnemy = GetFixedEnemyForScene(SceneManager.GetActiveScene().name);
+        if (fixedEnemy != null)
+        {
+            if (fixedEnemy.enemyName == "奶龙大军")
+                ConfigureEliteEncounter(fixedEnemy);
+            else
+                ConfigureEnemyController(fixedEnemy);
+            return;
+        }
+
         // 根据地图节点类型选择对应怪物池。
         bool isBoss = gm != null && gm.currentNodeType == "Boss";
         bool isElite = gm != null && gm.currentNodeType == "Elite";
@@ -817,6 +828,16 @@ public class BattleManager : MonoBehaviour
         if (_isNaiLongArmyEncounter || _enemyObject == null) return;
         if (_naiLongArmyMembers == null || _naiLongArmyMembers.Length != 3)
         {
+            _naiLongArmyMembers = new[]
+            {
+                Resources.Load<EnemyData>("EnemyData/KeainailongData"),
+                Resources.Load<EnemyData>("EnemyData/DanailongData"),
+                Resources.Load<EnemyData>("EnemyData/NaifuData")
+            };
+        }
+
+        if (_naiLongArmyMembers.Any(member => member == null))
+        {
             Debug.LogError("[BattleManager] 奶龙大军需要依次配置可爱奶龙、大奶龙、奶蝠三份 Data。");
             return;
         }
@@ -871,6 +892,28 @@ public class BattleManager : MonoBehaviour
             "疯狂戴夫" => typeof(FengKuangDaiFu),
             _ => typeof(EnemyController)
         };
+    }
+
+    private static EnemyData GetFixedEnemyForScene(string sceneName)
+    {
+        string resourceName = sceneName switch
+        {
+            "BattleScene" => "GugugagaData",
+            "BattleScene2" => "WodedaodunData",
+            "BattleScene3" => "NiyijikuData",
+            "BattleScene4" => "LiuhuaqiangData",
+            "BattleScene5" => "YaoyiyaoData",
+            "BattleScene6" => "DaipaiyujieData",
+            "BattleScene7" => "ChuanpuData",
+            "BattleScene8" => "NailongArmyData",
+            "BattleScene9" => "FengkuangxingqisiData",
+            "BattleScene10" => "FengkuangdaifuData",
+            _ => null
+        };
+
+        return string.IsNullOrEmpty(resourceName)
+            ? null
+            : Resources.Load<EnemyData>("EnemyData/" + resourceName);
     }
 
     /// <summary>

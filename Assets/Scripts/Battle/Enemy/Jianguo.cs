@@ -1,28 +1,17 @@
-using UnityEngine;
-
 /// <summary>
-/// 坚果 - 每回合给 Boss 上护盾
+/// 坚果：仅提供“坚硬外壳”被动；伤害减免由疯狂戴夫统一处理。
 /// </summary>
 public class JianGuo : EnemyController
 {
     protected override void DecideIntent()
     {
-        currentIntent = EnemyIntent.Defend;
-        intentValue = 10;
+        currentIntent = EnemyIntent.None;
+        intentValue = 0;
+        intentDescription = "坚硬外壳";
     }
 
     protected override void ExecuteIntent()
     {
-        // 给 Boss 上护盾（需要找到 Boss 的 enemyBlock）
-        FengKuangDaiFu boss = FindObjectOfType<FengKuangDaiFu>();
-        if (boss != null)
-        {
-            enemyBlock bossBlock = boss.GetComponent<enemyBlock>();
-            if (bossBlock != null)
-            {
-                bossBlock.AddBlock(intentValue);
-                Debug.Log($"坚果 给 Boss 上 {intentValue} 点护盾");
-            }
-        }
+        // 坚果不再每回合给 Boss 护盾。
     }
 }

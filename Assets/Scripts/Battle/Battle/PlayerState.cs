@@ -5,6 +5,8 @@
 /// </summary>
 public class PlayerState : MonoBehaviour
 {
+    public const int MaxWeaknessStacks = 3;
+    public const int MaxVulnerableStacks = 3;
     [Header("力量")]
     [SerializeField] private int _power = 0;
 
@@ -68,13 +70,18 @@ public class PlayerState : MonoBehaviour
     public void AddWeakness(int amount)
     {
         if (amount > 0)
-            _weakness += amount;
+            _weakness = Mathf.Min(MaxWeaknessStacks, _weakness + amount);
     }
 
     public void AddVulnerable(int amount)
     {
         if (amount > 0)
-            _vulnerable += amount;
+            _vulnerable = Mathf.Min(MaxVulnerableStacks, _vulnerable + amount);
+    }
+
+    public void ClearVulnerable()
+    {
+        _vulnerable = 0;
     }
 
     public void TickVulnerable()

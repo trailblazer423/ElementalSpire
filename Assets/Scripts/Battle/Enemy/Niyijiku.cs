@@ -49,7 +49,7 @@ public class NiYiJiKu : EnemyController
         if (_playerState != null)
         {
             _playerState.AddWeakness(intentValue);
-            Debug.Log($"{enemyData.enemyName} 大喊：你已急哭！给玩家施加 {intentValue} 层虚弱，当前虚弱 {_playerState.Weakness}/5");
+            Debug.Log($"{enemyData.enemyName} 大喊：你已急哭！给玩家施加 {intentValue} 层虚弱，当前虚弱 {_playerState.Weakness}/{PlayerState.MaxWeaknessStacks}");
         }
         else
         {

@@ -23,11 +23,14 @@ public class MapNode : MonoBehaviour
     {
         nodeBtn = GetComponent<Button>();
         nodeImage = GetComponent<Image>();
+        BindClickEvent();
+    }
 
-        if (nodeBtn != null)
-        {
-            nodeBtn.onClick.AddListener(OnMapNodeClicked);
-        }
+    void OnEnable()
+    {
+        BindClickEvent();
+        // 地图节点来自预制体；场景合并或节点重新启用后，确保运行时点击回调仍然存在。
+        BindClickEvent();
     }
 
     void OnDestroy()
@@ -36,6 +39,18 @@ public class MapNode : MonoBehaviour
         {
             nodeBtn.onClick.RemoveListener(OnMapNodeClicked);
         }
+    }
+
+    private void BindClickEvent()
+    {
+        if (nodeBtn == null)
+            nodeBtn = GetComponent<Button>();
+
+        if (nodeBtn == null)
+            return;
+
+        nodeBtn.onClick.RemoveListener(OnMapNodeClicked);
+        nodeBtn.onClick.AddListener(OnMapNodeClicked);
     }
 
     // 刷新节点显示状态
@@ -83,9 +98,13 @@ public class MapNode : MonoBehaviour
         if (!IsUnlocked || IsCleared) return;
 
         // 所有节点逻辑统一交给 MapManager 处理
-        if (MapManager.Instance != null)
+        MapManager mapManager = MapManager.Instance;
+        if (mapManager == null)
+            mapManager = FindObjectOfType<MapManager>();
+
+        if (mapManager != null)
         {
-            MapManager.Instance.OnNodeClicked(NodeId, NodeType);
+            mapManager.OnNodeClicked(NodeId, NodeType);
         }
         else
         {

@@ -6,27 +6,54 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/MainMenuScene.unity
-    guid: 3c0a8a89986c9c34aa22af32126ba637
+    path: Assets/Scenes/CardDraftScene.unity
+    guid: 8eae9e7a1b4318346ab636d9a1560736
   - enabled: 1
     path: Assets/Scenes/ElementSelectScene.unity
     guid: 2c25c72e53ce97f4b95516211b2ec71a
   - enabled: 1
-    path: Assets/Scenes/CardDraftScene.unity
-    guid: 8eae9e7a1b4318346ab636d9a1560736
+    path: Assets/Scenes/EventScene.unity
+    guid: 29a6bf1b4cede134893859dfc4ac48fa
+  - enabled: 1
+    path: Assets/Scenes/MainMenuScene.unity
+    guid: 3c0a8a89986c9c34aa22af32126ba637
   - enabled: 1
     path: Assets/Scenes/MapScene.unity
     guid: 1d80ce10a836b9947b071bf180f3541a
   - enabled: 1
-    path: Assets/Scenes/BattleScene.unity
-    guid: ed919dc570c04fd48989f57703bb33e0
-  - enabled: 1
-    path: Assets/Scenes/EventScene.unity
-    guid: 29a6bf1b4cede134893859dfc4ac48fa
+    path: Assets/Scenes/RankingScene.unity
+    guid: 070a973e52bc47a7a9a025834e29afa8
   - enabled: 1
     path: Assets/Scenes/RestScene.unity
     guid: 169da8fdf49a72144af84abb0059dd1f
   - enabled: 1
-    path: Assets/Scenes/RankingScene.unity
-    guid: 070a973e52bc47a7a9a025834e29afa8
+    path: Assets/Scenes/Battle/BattleScene.unity
+    guid: ed919dc570c04fd48989f57703bb33e0
+  - enabled: 1
+    path: Assets/Scenes/Battle/BattleScene2.unity
+    guid: 05ddc3a66d9611a44986ce706676b68f
+  - enabled: 1
+    path: Assets/Scenes/Battle/BattleScene3.unity
+    guid: 2d6f839eddac3ea429a29529c038345d
+  - enabled: 1
+    path: Assets/Scenes/Battle/BattleScene4.unity
+    guid: af9e667551ee94f4c80ef74616d31500
+  - enabled: 1
+    path: Assets/Scenes/Battle/BattleScene5.unity
+    guid: d51ceef16fbe9ae4a9eb1cf60e2b9075
+  - enabled: 1
+    path: Assets/Scenes/Battle/BattleScene6.unity
+    guid: 1880e466388041041acd04401b14596d
+  - enabled: 1
+    path: Assets/Scenes/Battle/BattleScene7.unity
+    guid: bcfef42a55ed77247a92c1fed6d15645
+  - enabled: 1
+    path: Assets/Scenes/Battle/BattleScene8.unity
+    guid: 6ed23b6ca018a864f937b68c17ca463c
+  - enabled: 1
+    path: Assets/Scenes/Battle/BattleScene9.unity
+    guid: de36cf44914a8b04b9421dfa41a45f67
+  - enabled: 1
+    path: Assets/Scenes/Battle/BattleScene10.unity
+    guid: c693e811c66fa744dba763fdbccf21ed
   m_configObjects: {}

@@ -26,6 +26,8 @@ public sealed class RunHudController : MonoBehaviour
     private Button _discardPileButton;
     private Text _discardPileButtonText;
     private CardCollectionPanel _collectionPanel;
+    private Button _enemyInfoButton;
+    private EnemyIntroductionPanel _enemyIntroductionPanel;
     private GameObject _confirmRoot;
     private Text _confirmMessageText;
 
@@ -119,6 +121,7 @@ public sealed class RunHudController : MonoBehaviour
         bool battleScene = IsBattleScene();
         _drawPileButton.gameObject.SetActive(battleScene);
         _discardPileButton.gameObject.SetActive(battleScene);
+        _enemyInfoButton.gameObject.SetActive(battleScene);
         RefreshHp();
         RefreshPileButtons();
     }
@@ -149,6 +152,11 @@ public sealed class RunHudController : MonoBehaviour
         SetTopRight(deckButton.GetComponent<RectTransform>(), new Vector2(-104f, -24f), new Vector2(112f, 64f));
         deckButton.onClick.AddListener(OpenPermanentDeck);
 
+        _enemyInfoButton = CreateButton("EnemyInfoButton", _canvasRoot.transform, "敌人简介", 22,
+            new Color(0.38f, 0.18f, 0.15f, 0.96f));
+        SetTopRight(_enemyInfoButton.GetComponent<RectTransform>(), new Vector2(-232f, -24f), new Vector2(122f, 64f));
+        _enemyInfoButton.onClick.AddListener(OpenEnemyIntroduction);
+
         _drawPileButton = CreateButton("DrawPileButton", _canvasRoot.transform, "抽牌堆 0", 21,
             new Color(0.16f, 0.34f, 0.52f, 0.94f));
         SetTopLeft(_drawPileButton.GetComponent<RectTransform>(), new Vector2(24f, -100f),
@@ -168,6 +176,12 @@ public sealed class RunHudController : MonoBehaviour
         collectionRoot.transform.SetParent(_canvasRoot.transform, false);
         _collectionPanel = collectionRoot.GetComponent<CardCollectionPanel>();
         _collectionPanel.Initialize(_font);
+
+        GameObject enemyInfoRoot = new GameObject("EnemyIntroductionOverlay", typeof(Image),
+            typeof(EnemyIntroductionPanel));
+        enemyInfoRoot.transform.SetParent(_canvasRoot.transform, false);
+        _enemyIntroductionPanel = enemyInfoRoot.GetComponent<EnemyIntroductionPanel>();
+        _enemyIntroductionPanel.Initialize(_font);
 
         BuildExitConfirmation();
         _canvasRoot.SetActive(true);
@@ -307,6 +321,15 @@ public sealed class RunHudController : MonoBehaviour
         OpenCollection("弃牌堆", cards);
     }
 
+    private void OpenEnemyIntroduction()
+    {
+        if (_exitInProgress || _enemyIntroductionPanel == null)
+            return;
+
+        _collectionPanel?.Hide();
+        _enemyIntroductionPanel.Show();
+    }
+
     private void OpenCollection(string title, IReadOnlyList<CardInstance> cards)
     {
         if (_exitInProgress)
@@ -394,7 +417,9 @@ public sealed class RunHudController : MonoBehaviour
 
     private bool IsBattleScene()
     {
-        return string.Equals(_activeSceneName, "BattleScene", StringComparison.OrdinalIgnoreCase);
+        // 第 1 关名为 BattleScene，后续关卡为 BattleScene2~10。
+        return !string.IsNullOrEmpty(_activeSceneName)
+            && _activeSceneName.StartsWith("BattleScene", StringComparison.OrdinalIgnoreCase);
     }
 
     private void PauseTimeScaleForModal()

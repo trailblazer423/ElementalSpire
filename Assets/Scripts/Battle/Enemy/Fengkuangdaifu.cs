@@ -1,14 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-/// <summary>
-/// 疯狂戴夫：与三株植物共同组成 Boss 遭遇。
-/// 三株植物存活时施加 1 层虚弱；任一植物死亡时，戴夫消耗 40 HP 补种。
-/// </summary>
+/// <summary>疯狂戴夫：管理三个花盆与植物复活。</summary>
 public class FengKuangDaiFu : EnemyController
 {
-    private const int RespawnCost = 40;
-    private const int WeaknessAmount = 1;
+    private const int RespawnCost = 20;
 
     private readonly List<GameObject> _plants = new List<GameObject>();
     private BattleManager _battleManager;
@@ -30,40 +26,22 @@ public class FengKuangDaiFu : EnemyController
         if (!_plantsSpawned)
         {
             currentIntent = EnemyIntent.None;
-            intentValue = 0;
             intentDescription = "准备花盆";
             return;
         }
 
-        bool respawned = RespawnOneMissingPlant();
-        if (!AreAllPlantsAlive())
-        {
-            currentIntent = EnemyIntent.None;
-            intentValue = 0;
-            intentDescription = _enemyHP != null && _enemyHP.CurrentHP < RespawnCost ? "生命不足，无法补种" : "补种植物";
-            return;
-        }
-
-        currentIntent = EnemyIntent.Debuff;
-        intentValue = WeaknessAmount;
-        intentDescription = respawned ? "补种后 Wabibabu：虚弱+1" : "Wabibabu：虚弱+1";
+        RespawnMissingPlants();
+        currentIntent = EnemyIntent.None;
+        intentValue = 0;
+        intentDescription = AreAllPlantsAlive()
+            ? "花盆运作中"
+            : "生命不足，无法补种";
     }
 
     protected override void ExecuteIntent()
     {
-        if (currentIntent != EnemyIntent.Debuff || _playerState == null)
-            return;
-
-        // 植物会在玩家回合中死亡；敌方行动开始前再次检查，确保本回合立即补种。
-        if (!AreAllPlantsAlive())
-        {
-            RespawnOneMissingPlant();
-            if (!AreAllPlantsAlive())
-                return;
-        }
-
-        _playerState.AddWeakness(intentValue);
-        Debug.Log($"疯狂戴夫 Wabibabu！玩家虚弱 +{intentValue}。");
+        // 玩家回合可能击杀植物；敌方行动前立即执行对应花盆的补种。
+        RespawnMissingPlants();
     }
 
     private void SpawnAllPlants()
@@ -73,7 +51,7 @@ public class FengKuangDaiFu : EnemyController
         SpawnPlant(PlantSlot.Sunflower);
     }
 
-    private bool RespawnOneMissingPlant()
+    private void RespawnMissingPlants()
     {
         RemoveDeadPlantReferences();
 
@@ -81,17 +59,13 @@ public class FengKuangDaiFu : EnemyController
         {
             if (HasAlivePlant(slot))
                 continue;
-
             if (_enemyHP == null || _enemyHP.CurrentHP < RespawnCost)
-                return false;
+                continue;
 
             _enemyHP.TakeDamage(RespawnCost);
             SpawnPlant(slot);
-            Debug.Log($"疯狂戴夫消耗 {RespawnCost} HP，补种 {GetPlantData(slot).enemyName}。");
-            return true;
+            Debug.Log($"疯狂戴夫消耗 {RespawnCost} HP，在花盆中重新种植 {GetPlantData(slot).enemyName}。");
         }
-
-        return false;
     }
 
     private void SpawnPlant(PlantSlot slot)
@@ -106,8 +80,6 @@ public class FengKuangDaiFu : EnemyController
         GameObject plant = new GameObject(data.enemyName);
         plant.transform.position = transform.position + GetPlantOffset(slot);
 
-        // 植物由运行时创建，必须补齐可渲染节点；根物体位于战斗逻辑层（z = -10），
-        // 子节点放到与主敌人相同的显示层（z = 0）。
         GameObject body = new GameObject("Body", typeof(SpriteRenderer), typeof(EnemyVisual));
         body.transform.SetParent(plant.transform, false);
         body.transform.localPosition = new Vector3(0f, 0f, 10f);
@@ -136,7 +108,10 @@ public class FengKuangDaiFu : EnemyController
         {
             bool dead = plant == null || plant.GetComponent<enemyHP>() == null || plant.GetComponent<enemyHP>().CurrentHP <= 0;
             if (dead && plant != null)
+            {
+                HandlePlantDeath(GetPlantSlot(plant));
                 Destroy(plant);
+            }
             return dead;
         });
     }
@@ -155,6 +130,38 @@ public class FengKuangDaiFu : EnemyController
             && plant.name == plantName
             && plant.GetComponent<enemyHP>() != null
             && plant.GetComponent<enemyHP>().CurrentHP > 0);
+    }
+
+    public bool ShouldReducePlantDamage(GameObject plant)
+    {
+        if (plant == null || HasAlivePlant(PlantSlot.Wallnut) == false)
+            return false;
+
+        return plant.GetComponent<WanDouSheShou>() != null || plant.GetComponent<XiangRiKui>() != null;
+    }
+
+    private void HandlePlantDeath(PlantSlot slot)
+    {
+        if (slot == PlantSlot.Wallnut)
+        {
+            _enemyBlock?.AddBlock(10);
+            Debug.Log("坚果死亡：其他植物解除减伤，疯狂戴夫获得 10 点护盾。");
+        }
+        else if (slot == PlantSlot.Sunflower)
+        {
+            _playerState?.ClearVulnerable();
+            Debug.Log("向日葵死亡：清除玩家全部易伤层数。");
+        }
+    }
+
+    private PlantSlot GetPlantSlot(GameObject plant)
+    {
+        if (plant != null)
+        {
+            if (plant.name == GetPlantData(PlantSlot.Wallnut)?.enemyName) return PlantSlot.Wallnut;
+            if (plant.name == GetPlantData(PlantSlot.Sunflower)?.enemyName) return PlantSlot.Sunflower;
+        }
+        return PlantSlot.Peashooter;
     }
 
     private EnemyData GetPlantData(PlantSlot slot)

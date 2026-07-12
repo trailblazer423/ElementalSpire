@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ef62f7d66b02a024fa9bd8dfdbe986d9, type: 3}
   m_Name: ChuanpuData
   m_EditorClassIdentifier: 
-  enemyName: "\u5DDD\u666E"
+  enemyName: "\u8521\u5F90\u5764"
   maxHP: 55
   baseAttack: 8
   baseDefend: 10

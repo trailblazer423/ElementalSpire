@@ -25,6 +25,10 @@ public class enemyHP : MonoBehaviour
     {
         if (damage <= 0) return;
 
+        FengKuangDaiFu daiFu = FindObjectOfType<FengKuangDaiFu>();
+        if (daiFu != null && daiFu.ShouldReducePlantDamage(gameObject))
+            damage = Mathf.CeilToInt(damage * 0.5f);
+
         int remaining = _blockComponent != null
             ? _blockComponent.AbsorbDamage(damage)
             : damage;

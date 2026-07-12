@@ -485,14 +485,15 @@ public class CardDraftManager : MonoBehaviour
         TextMeshProUGUI skipTmp = skipButton.GetComponentInChildren<TextMeshProUGUI>(true);
         if (skipTmp != null)
         {
-            skipTmp.text = "跳过";
+            // 唯一的流程按钮：未选择卡牌时等同跳过；选中卡牌后会自动进入下一步。
+            skipTmp.text = "继续";
             ApplyChineseTmpFont(skipTmp);
         }
 
         Text skipLegacy = skipButton.GetComponentInChildren<Text>(true);
         if (skipLegacy != null)
         {
-            skipLegacy.text = "跳过";
+            skipLegacy.text = "继续";
             skipLegacy.font = CardView.GetCompatibleFont();
         }
     }

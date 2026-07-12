@@ -17,7 +17,7 @@ public class DaNaiLong : EnemyController
         if (_playerState != null)
         {
             _playerState.AddWeakness(intentValue);
-            Debug.Log($"{enemyData.enemyName} 唐笑！给玩家施加 {intentValue} 层虚弱，当前虚弱 {_playerState.Weakness}/5");
+            Debug.Log($"{enemyData.enemyName} 唐笑！给玩家施加 {intentValue} 层虚弱，当前虚弱 {_playerState.Weakness}/{PlayerState.MaxWeaknessStacks}");
         }
         else
         {

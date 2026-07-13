@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// 川普：每回合等概率建墙、加关税或发动推特攻击。
+/// 蔡徐坤：每回合随机使用攻击、防御或削减下回合能量。
 /// </summary>
 public class ChuanPu : EnemyController
 {
@@ -12,17 +12,17 @@ public class ChuanPu : EnemyController
             case 0:
                 currentIntent = EnemyIntent.Defend;
                 intentValue = 10;
-                intentDescription = "";
+                intentDescription = "你干嘛~：获得护盾";
                 break;
             case 1:
                 currentIntent = EnemyIntent.Debuff;
                 intentValue = 1;
-                intentDescription = $"能量-{intentValue}";
+                intentDescription = $"鸡你太美：下回合能量-{intentValue}";
                 break;
             default:
                 currentIntent = EnemyIntent.Attack;
                 intentValue = 8;
-                intentDescription = "";
+                intentDescription = "铁山靠：造成伤害";
                 break;
         }
     }

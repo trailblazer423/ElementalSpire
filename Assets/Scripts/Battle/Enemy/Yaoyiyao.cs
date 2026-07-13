@@ -9,6 +9,11 @@ public class YaoYiYao : EnemyController
     private bool _lastWasYang = false;
     private bool _isBurstTurn = false;   // 标记当前回合是否是大招回合
 
+    /// <summary>供意图 UI 读取本次卦象与连卦进度。</summary>
+    public bool IsYangIntent => _lastWasYang;
+    public int ConsecutiveCount => _consecutiveCount;
+    public bool IsBurstTurn => _isBurstTurn;
+
     protected override void DecideIntent()
     {
         int enemyPower = _enemyState != null ? _enemyState.Power : 0;
@@ -30,7 +35,8 @@ public class YaoYiYao : EnemyController
             _isBurstTurn = true;
             currentIntent = EnemyIntent.Attack;
             intentValue = 25 + enemyPower;   // 大招伤害
-            intentDescription = "大招！";
+            string trigram = isYang ? "阳" : "阴";
+            intentDescription = $"三连{trigram}卦！\n⚔ 大招 {intentValue}";
             _consecutiveCount = 0;           // 大招释放后重置计数
             return;
         }
@@ -43,14 +49,16 @@ public class YaoYiYao : EnemyController
             // 阳卦：造成 6 + 力量 伤害，然后力量 +3
             currentIntent = EnemyIntent.Attack;
             intentValue = 6 + enemyPower;
-            intentDescription = $"阳卦 攻击{intentValue} 力量+3";
+            string warning = _consecutiveCount == 2 ? " → 同卦大招" : "";
+            intentDescription = $"阳卦  ⚔ 攻击 {intentValue}\n✦ 力量 +3 · 连阳 {_consecutiveCount}/3{warning}";
         }
         else
         {
             // 阴卦：造成 4 + 力量 伤害，获得 10 格挡
             currentIntent = EnemyIntent.Attack;
             intentValue = 4 + enemyPower;
-            intentDescription = $"阴卦 攻击{intentValue} 护盾+10";
+            string warning = _consecutiveCount == 2 ? " → 同卦大招" : "";
+            intentDescription = $"阴卦  ⚔ 攻击 {intentValue}\n🛡 护盾 +10 · 连阴 {_consecutiveCount}/3{warning}";
         }
     }
 

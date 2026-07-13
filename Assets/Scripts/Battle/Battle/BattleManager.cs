@@ -885,6 +885,7 @@ public class BattleManager : MonoBehaviour
             "爻一爻" => typeof(YaoYiYao),
             "带派雨姐" => typeof(DaiPaiYuJie),
             "川普" => typeof(ChuanPu),
+            "蔡徐坤" => typeof(ChuanPu),
             "可爱奶龙" => typeof(KeAiNaiLong),
             "大奶龙" => typeof(DaNaiLong),
             "奶蝠" => typeof(NaiFu),

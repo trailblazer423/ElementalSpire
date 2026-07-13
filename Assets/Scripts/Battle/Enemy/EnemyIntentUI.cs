@@ -38,6 +38,19 @@ public class EnemyIntentUI : MonoBehaviour
         int value = _controller.GetIntentValue();
         string description = _controller.intentDescription;
 
+        // 爻一爻的一次行动包含伤害与另一项效果，不能被通用的“攻击 X”文本覆盖。
+        // 保留两行专属文本，同时让玩家看到连续同卦的进度。
+        if (_controller is YaoYiYao yaoYiYao)
+        {
+            text = description;
+            color = yaoYiYao.IsBurstTurn
+                ? new Color(1f, 0.45f, 0.05f)
+                : (yaoYiYao.IsYangIntent
+                    ? new Color(0.95f, 0.72f, 0.12f)
+                    : new Color(0.35f, 0.65f, 1f));
+            return;
+        }
+
         switch (intent)
         {
             case EnemyIntent.Attack:

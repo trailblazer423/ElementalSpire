@@ -791,6 +791,15 @@ public class BattleUI : MonoBehaviour
     private void UpdateIntentDisplay()
     {
         if (_enemyIntentObj == null || _enemyIntentText == null || _enemyIntentBg == null) return;
+
+        // 多敌人战斗的意图由每个敌人自己的信息卡负责显示。
+        // 不能继续刷新旧的单敌人意图，否则它会在画面中央留下重复的一条意图。
+        if (_battleManager?.MultiEnemyManager != null)
+        {
+            _enemyIntentObj.SetActive(false);
+            return;
+        }
+
         if (_battleManager?.EnemyObject == null) return;
 
         var intentUI = _battleManager.EnemyObject.GetComponent<EnemyIntentUI>();
@@ -799,6 +808,12 @@ public class BattleUI : MonoBehaviour
             intentUI.GetIntentDisplay(out string intentText, out Color intentColor);
             _enemyIntentText.text = intentText;
             _enemyIntentText.color = Color.white;
+
+            bool isYaoYiYao = GetControllerWithData(_battleManager.EnemyObject) is YaoYiYao;
+            RectTransform intentRect = _enemyIntentObj.GetComponent<RectTransform>();
+            if (intentRect != null)
+                intentRect.sizeDelta = isYaoYiYao ? new Vector2(230f, 76f) : new Vector2(160f, 44f);
+            _enemyIntentText.fontSize = isYaoYiYao ? 17 : 22;
 
             // 内部背景：意图色半透明
             _enemyIntentBg.color = new Color(intentColor.r, intentColor.g, intentColor.b, 0.35f);
@@ -933,6 +948,7 @@ public class BattleUI : MonoBehaviour
         public RectTransform hpBarBg;
         public Text blockText;
         public Text poisonText;
+        public Text elementText;
         public Text powerText;
         public Text weaknessText;
         public Button targetButton;
@@ -965,9 +981,9 @@ public class BattleUI : MonoBehaviour
         int count = aliveEnemies.Count;
         float startX = 495f;
         float startY = 330f;
-        float spacingY = 145f;
+        float spacingY = 155f;
         float panelWidth = 300f;
-        float panelHeight = 130f;
+        float panelHeight = 150f;
 
         // 清理旧面板
         foreach (var old in _multiEnemyPanels)
@@ -1031,13 +1047,16 @@ public class BattleUI : MonoBehaviour
                 14, Color.white, Vector2.zero, _font);
             PlaceInEnemyPanel(panel.hpText, panel.container.transform, new Vector2(0, 13));
 
-            // 护盾/中毒（左列）
+            // 护盾/中毒/元素附着（左列）
             panel.blockText = CreateText($"EnemyBlock_{i}", "",
                 15, Color.yellow, Vector2.zero, _font);
             panel.poisonText = CreateText($"EnemyPoison_{i}", "",
                 15, new Color(0.3f, 0.8f, 0.1f), Vector2.zero, _font);
+            panel.elementText = CreateText($"EnemyElement_{i}", "",
+                15, new Color(0.8f, 0.9f, 1f), Vector2.zero, _font);
             PlaceInEnemyPanel(panel.blockText, panel.container.transform, new Vector2(-100, -17));
             PlaceInEnemyPanel(panel.poisonText, panel.container.transform, new Vector2(-100, -45));
+            PlaceInEnemyPanel(panel.elementText, panel.container.transform, new Vector2(-100, -68));
 
             // 力量/虚弱（右列）
             panel.powerText = CreateText($"EnemyPower_{i}", "",
@@ -1234,6 +1253,23 @@ public class BattleUI : MonoBehaviour
             // 中毒
             panel.poisonText.text = (enemy.state != null && enemy.state.PoisonStacks > 0)
                 ? $"中毒: {enemy.state.PoisonStacks}" : "";
+
+            // 元素附着 / 深度中毒
+            if (enemy.state != null)
+            {
+                string elementText = enemy.state.ElementAttachment != ElementType.None
+                    ? $"附着: {ElementName(enemy.state.ElementAttachment)}"
+                    : "";
+                if (enemy.state.DeepPoison)
+                    elementText = string.IsNullOrEmpty(elementText)
+                        ? "深度中毒"
+                        : elementText + " / 深度中毒";
+                panel.elementText.text = elementText;
+            }
+            else
+            {
+                panel.elementText.text = "";
+            }
 
             // 力量
             panel.powerText.text = (enemy.state != null && enemy.state.Power > 0)

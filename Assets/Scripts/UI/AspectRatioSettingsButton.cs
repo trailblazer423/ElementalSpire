@@ -10,6 +10,8 @@ using UnityEngine.UI;
 public sealed class AspectRatioSettingsButton : MonoBehaviour
 {
     private const string AspectRatioPreferenceKey = "DisplayAspectRatio";
+    private static int _displayBaseWidth;
+    private static int _displayBaseHeight;
     private GameObject _panel;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -142,21 +144,49 @@ public sealed class AspectRatioSettingsButton : MonoBehaviour
 
     private static void ApplyAspectRatio(float ratio)
     {
-        Resolution maximum = Screen.currentResolution;
+        EnsureDisplayBaseResolution();
+        int maximumWidth = _displayBaseWidth;
+        int maximumHeight = _displayBaseHeight;
+        FullScreenMode mode = Screen.fullScreenMode;
+
         if (ratio <= 0f)
         {
-            Screen.SetResolution(maximum.width, maximum.height, Screen.fullScreen);
+            Screen.SetResolution(maximumWidth, maximumHeight, mode);
+            Debug.Log($"[AspectRatioSettings] 自动适配：{maximumWidth}x{maximumHeight}，mode={mode}。");
             return;
         }
 
-        int width = maximum.width;
+        // 每次都从固定的显示器基准重新计算，禁止以上一次设置后的分辨率继续相乘。
+        int width = maximumWidth;
         int height = Mathf.RoundToInt(width / ratio);
-        if (height > maximum.height)
+        if (height > maximumHeight)
         {
-            height = maximum.height;
+            height = maximumHeight;
             width = Mathf.RoundToInt(height * ratio);
         }
-        Screen.SetResolution(width, height, Screen.fullScreen);
+
+        width = Mathf.Max(640, width);
+        height = Mathf.Max(360, height);
+        Screen.SetResolution(width, height, mode);
+        Debug.Log($"[AspectRatioSettings] 应用比例 {ratio:0.###}：{width}x{height}，固定基准={maximumWidth}x{maximumHeight}。");
+    }
+
+    private static void EnsureDisplayBaseResolution()
+    {
+        if (_displayBaseWidth > 0 && _displayBaseHeight > 0)
+            return;
+
+        // Display.systemWidth/systemHeight 表示显示器系统尺寸，不会随游戏窗口 SetResolution 累计变化。
+        Display display = Display.main;
+        _displayBaseWidth = display != null ? display.systemWidth : 0;
+        _displayBaseHeight = display != null ? display.systemHeight : 0;
+
+        if (_displayBaseWidth <= 0 || _displayBaseHeight <= 0)
+        {
+            Resolution fallback = Screen.currentResolution;
+            _displayBaseWidth = Mathf.Max(640, fallback.width);
+            _displayBaseHeight = Mathf.Max(360, fallback.height);
+        }
     }
 
     private static Button CreateButton(Transform parent, string name, string label, Vector2 position,

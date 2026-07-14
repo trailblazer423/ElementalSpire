@@ -122,6 +122,59 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &19198209
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 19198211}
+  - component: {fileID: 19198210}
+  m_Layer: 0
+  m_Name: SceneMusicManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &19198210
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 19198209}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aed1cedc14db2a449bb6a473ae2b0ef6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  introMusic: {fileID: 8300000, guid: 121edbcf4aae23b41a158c12212b42a1, type: 3}
+  musicVolume: 1
+  lineClips:
+  - {fileID: 8300000, guid: 169d77c4e4d01aa41a7aab16e9f24399, type: 3}
+  - {fileID: 8300000, guid: 12a7878de29ba9746a1a87b97b555403, type: 3}
+  - {fileID: 8300000, guid: 121edbcf4aae23b41a158c12212b42a1, type: 3}
+  lineVolume: 0.9
+  intervalSeconds: 15
+  logDebug: 1
+--- !u!4 &19198211
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 19198209}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 791.08936, y: 470.34937, z: -5.2698936}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &154813531
 GameObject:
   m_ObjectHideFlags: 0
@@ -2209,3 +2262,4 @@ SceneRoots:
   - {fileID: 1444832784}
   - {fileID: 1532884587}
   - {fileID: 1107284471}
+  - {fileID: 19198211}

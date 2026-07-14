@@ -1164,6 +1164,61 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 824187646}
   m_CullTransparentMesh: 1
+--- !u!1 &880160011
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 880160013}
+  - component: {fileID: 880160012}
+  m_Layer: 0
+  m_Name: SceneMusicManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &880160012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 880160011}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aed1cedc14db2a449bb6a473ae2b0ef6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  introMusic: {fileID: 8300000, guid: 78d2fb80bd76a1d4eafe4028882c00d9, type: 3}
+  musicVolume: 1
+  lineClips:
+  - {fileID: 8300000, guid: 78d2fb80bd76a1d4eafe4028882c00d9, type: 3}
+  - {fileID: 8300000, guid: 803b47babea714541865fad18a8f8657, type: 3}
+  - {fileID: 8300000, guid: 2067e747d5ef54b4b958a0a5eb3b3312, type: 3}
+  - {fileID: 8300000, guid: b4538b288884b6940998973b3f88dab0, type: 3}
+  - {fileID: 8300000, guid: 3ef92861a4bbd2c40a153bfbdfa812f4, type: 3}
+  lineVolume: 0.9
+  intervalSeconds: 15
+  logDebug: 1
+--- !u!4 &880160013
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 880160011}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 791.08936, y: 470.34937, z: -5.2698936}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &933167649
 GameObject:
   m_ObjectHideFlags: 0
@@ -2133,3 +2188,4 @@ SceneRoots:
   - {fileID: 1444832784}
   - {fileID: 1532884587}
   - {fileID: 1107284471}
+  - {fileID: 880160013}

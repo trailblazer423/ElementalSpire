@@ -722,6 +722,10 @@ PrefabInstance:
       propertyPath: m_Material
       value: 
       objectReference: {fileID: 0}
+    - target: {fileID: 6639624959189984345, guid: a723043de57a9464ab7af63cd15b825c, type: 3}
+      propertyPath: m_PreserveAspect
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 7217929787372617128, guid: a723043de57a9464ab7af63cd15b825c, type: 3}
       propertyPath: NodeId
       value: 9
@@ -3228,8 +3232,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4286874756
-  m_fontColor: {r: 0.51572317, g: 0.51572317, b: 0.51572317, a: 1}
+    rgba: 2223277188
+  m_fontColor: {r: 0.51572317, g: 0.51572317, b: 0.51572317, a: 0.5176471}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:

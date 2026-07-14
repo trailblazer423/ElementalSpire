@@ -787,14 +787,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   musicSource: {fileID: 392171393}
   musicPlaylist:
-  - {fileID: 8300000, guid: a85ab681c2a3a7146a66c6a81f29bcca, type: 3}
-  - {fileID: 8300000, guid: fe93c3f43ff7b704c8ed8e7635882fc8, type: 3}
-  - {fileID: 8300000, guid: c91edc95b36b25a45902dbd975e9dfcb, type: 3}
-  - {fileID: 8300000, guid: fb66208b21414f2428f4c97a77c5dc94, type: 3}
-  - {fileID: 8300000, guid: 9149e275ee6cdbc4cbe9a95b2e3cbcbd, type: 3}
-  - {fileID: 8300000, guid: ff95c771e45080849a8ddaa152d4c989, type: 3}
-  - {fileID: 8300000, guid: bfaf5b3c78edd964083131389a020119, type: 3}
-  - {fileID: 8300000, guid: 24189a1a9aa3827499715f45636d6d1d, type: 3}
+  - {fileID: 8300000, guid: 38e02ae535fd742459ab653c2edf796c, type: 3}
+  - {fileID: 8300000, guid: 0f6195cdaa7aa52428b0404266aee460, type: 3}
+  - {fileID: 8300000, guid: 06d803cce3d263f43a00bc45f6f2d718, type: 3}
+  - {fileID: 8300000, guid: 9f9dfcace819ef04994d083b506a6df9, type: 3}
+  - {fileID: 8300000, guid: 8f4f3fcab79fc0d44b948a8820a1432f, type: 3}
+  - {fileID: 8300000, guid: 91cca5e6481afe24d9708922ada49981, type: 3}
+  - {fileID: 8300000, guid: 60f6b66a89035a84181261b5bd6a9711, type: 3}
   playOnStart: 1
 --- !u!1 &497488329
 GameObject:
@@ -1881,7 +1880,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 17ba2de692e4dc041aa9a575417d1fc9, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 6571dfa2a2f3bd74a9e1ba2373c5708d, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -2467,7 +2466,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 17ba2de692e4dc041aa9a575417d1fc9, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 6571dfa2a2f3bd74a9e1ba2373c5708d, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -2600,7 +2599,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 1e14659f085e72445b81c31d4cc9718a, type: 3}
+  m_Sprite: {fileID: 21300000, guid: db2fbc1865f05c54f9fd3fab7cf338b5, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1

@@ -71,6 +71,8 @@ public class CardEffectResolver
         CardData card = cardInstance.GetCardData();
         if (card == null) return;
 
+        BattleStatistics.EnsureExists().RecordCardPlayed(card);
+
         bool upgraded = cardInstance.isUpgraded;
         selectedTarget = target;
         battleManager?.LogBattleEvent($"结算 {card.cardName}{(upgraded ? "+" : string.Empty)}。");
@@ -420,7 +422,9 @@ public class CardEffectResolver
     private void LoseHp(int amount)
     {
         if (playerHp == null || amount <= 0) return;
+        int hpBefore = playerHp.CurrentHP;
         playerHp.CurrentHP = playerHp.CurrentHP - amount;
+        BattleStatistics.EnsureExists().RecordDamageTaken(hpBefore - playerHp.CurrentHP);
     }
 
     private void HealPlayer(int amount)

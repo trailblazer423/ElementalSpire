@@ -17,6 +17,7 @@ public class CardView : MonoBehaviour, IPointerClickHandler
     private Text _costText;
     private Text _descriptionText;
     private Image _background;
+    private CardAnimationController _animationController;
     private Button[] _elementButtons = new Button[0];
     private bool _interactable = true;
 
@@ -94,6 +95,8 @@ public class CardView : MonoBehaviour, IPointerClickHandler
         cardView._cardData = cardData;
         cardView._onClickCallback = onClickCallback;
         cardView.BuildUI(font != null ? font : GetCompatibleFont());
+        cardView._animationController = obj.AddComponent<CardAnimationController>();
+        cardView._animationController.Initialize(cardData);
         return cardView;
     }
 
@@ -104,6 +107,16 @@ public class CardView : MonoBehaviour, IPointerClickHandler
 
         _background = GetComponent<Image>();
         _background.color = GetElementColor(_cardData != null ? _cardData.elementType : ElementType.None);
+        CardAnimationProfile visualProfile = CardAnimationProfile.Resolve(_cardData);
+        Sprite cardImage = _cardData?.cardImage != null
+            ? _cardData.cardImage
+            : visualProfile?.cardImage;
+        if (cardImage != null)
+        {
+            _background.sprite = cardImage;
+            _background.preserveAspect = true;
+            _background.color = Color.white;
+        }
 
         if (_cardData == null || _cardInstance == null)
         {
@@ -228,14 +241,18 @@ public class CardView : MonoBehaviour, IPointerClickHandler
         if (!_interactable || _cardData == null || _cardData.chooseElement)
             return;
 
+        _animationController?.Select();
         _onClickCallback?.Invoke(_cardInstance, ElementType.None);
     }
 
     public void SetInteractable(bool interactable)
     {
         _interactable = interactable;
+        _animationController?.SetInteractable(interactable);
         _background.color = interactable
-            ? GetElementColor(_cardData != null ? _cardData.elementType : ElementType.None)
+            ? (_background.sprite != null
+                ? Color.white
+                : GetElementColor(_cardData != null ? _cardData.elementType : ElementType.None))
             : new Color(0.3f, 0.3f, 0.3f);
 
         foreach (var button in _elementButtons)
@@ -247,4 +264,5 @@ public class CardView : MonoBehaviour, IPointerClickHandler
 
     public CardInstance CardInstance => _cardInstance;
     public CardData CardData => _cardData;
+    public CardAnimationController AnimationController => _animationController;
 }

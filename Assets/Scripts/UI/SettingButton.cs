@@ -12,4 +12,5 @@ public class SettingButton : MonoBehaviour
             Time.timeScale = 0f; // 暂停游戏
         }
     }
+
 }

@@ -298,6 +298,7 @@ public class BattleUI : MonoBehaviour
             float startX = -totalWidth / 2f + 80;
             var rect = cardView.GetComponent<RectTransform>();
             rect.anchoredPosition = new Vector2(startX + i * 170, 0);
+            cardView.AnimationController?.SetRestPoseFromCurrent();
 
             bool canPlay = isPlayerAction && CanAffordCard(card);
             cardView.SetInteractable(canPlay);
@@ -330,11 +331,12 @@ public class BattleUI : MonoBehaviour
         CardData cardData = cardInstance?.GetCardData();
         if (_battleManager != null && _battleManager.RequiresTargetSelection(cardData))
         {
+            FindCardView(cardInstance)?.AnimationController?.Select();
             BeginTargetSelection(cardInstance, chosenElement);
             return;
         }
 
-        _battleManager?.PlayCard(cardInstance, chosenElement);
+        PlayCardAnimated(cardInstance, chosenElement, null);
     }
 
     private void BeginTargetSelection(CardInstance cardInstance, ElementType chosenElement)
@@ -357,8 +359,60 @@ public class BattleUI : MonoBehaviour
     {
         if (_pendingTargetCard == null || target == null || !target.IsAlive) return;
 
-        _battleManager?.PlayCard(_pendingTargetCard, _pendingTargetElement, target);
+        CardInstance card = _pendingTargetCard;
+        ElementType element = _pendingTargetElement;
         ClearTargetSelection();
+        PlayCardAnimated(card, element, target);
+    }
+
+    private void PlayCardAnimated(CardInstance cardInstance, ElementType chosenElement, EnemyUnit target)
+    {
+        if (_battleManager == null || cardInstance == null)
+            return;
+
+        CardData cardData = cardInstance.GetCardData();
+        CardView cardView = FindCardView(cardInstance);
+        CardAnimationController animation = cardView?.AnimationController;
+        Transform visualTarget = null;
+
+        if (target != null)
+            visualTarget = target.gameObject != null ? target.gameObject.transform : null;
+        else if (cardData != null && cardData.HasCardType(CardType.Attack))
+        {
+            EnemyUnit defaultTarget = _battleManager.MultiEnemyManager?.DefaultTarget;
+            visualTarget = defaultTarget?.gameObject != null
+                ? defaultTarget.gameObject.transform
+                : _battleManager.EnemyObject?.transform;
+        }
+        else
+        {
+            visualTarget = _battleManager.PlayerObject?.transform;
+        }
+
+        if (animation == null)
+        {
+            SetCardViewsInteractable(false);
+            _battleManager.PlayCard(cardInstance, chosenElement, target);
+            return;
+        }
+
+        animation.Select();
+        SetCardViewsInteractable(false);
+        if (_endTurnButton != null)
+            _endTurnButton.interactable = false;
+        animation.PlayCard(visualTarget, chosenElement,
+            () =>
+            {
+                _battleManager?.PlayCard(cardInstance, chosenElement, target);
+                if (_endTurnButton != null)
+                    _endTurnButton.interactable = _turnManager != null
+                        && _turnManager.CurrentPhase == BattlePhase.PlayerAction;
+            });
+    }
+
+    private CardView FindCardView(CardInstance cardInstance)
+    {
+        return _cardViews.Find(view => view != null && view.CardInstance == cardInstance);
     }
 
     private void ClearTargetSelection()
@@ -586,18 +640,9 @@ public class BattleUI : MonoBehaviour
     private void OnBattleOver(string result)
     {
         _lastBattleResult = result;
-        _resultPanel.SetActive(true);
-
-        if (result == "win")
-        {
-            _resultText.text = "胜利！\n点击继续";
-            _resultText.color = Color.yellow;
-        }
-        else
-        {
-            _resultText.text = "战败...\n点击返回主菜单";
-            _resultText.color = Color.red;
-        }
+        // 普通胜利不显示结算；最终胜利/任意失败由 BattleResultManager 显示完整页面。
+        if (_resultPanel != null)
+            _resultPanel.SetActive(false);
         if (_endTurnButton != null)
             _endTurnButton.gameObject.SetActive(false);
     }

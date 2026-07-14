@@ -174,6 +174,8 @@ public class GameManager : MonoBehaviour
     public void ResetRunState()
     {
 
+        BattleStatistics.EnsureExists().ResetForNewRun();
+
         currentDraftMode = DraftMode.InitialDraft;
         pendingEventToClear = false;
         pendingNodeCompletion = false;

@@ -29,6 +29,8 @@ public class playerHP : MonoBehaviour
     {
         if (damage <= 0) return;
 
+        int hpBefore = _currentHP;
+
         // 只有敌方攻击才受易伤加成，中毒/自伤不受影响
         if (applyVulnerable)
             damage += _playerState != null ? _playerState.Vulnerable : 0;
@@ -43,6 +45,10 @@ public class playerHP : MonoBehaviour
         {
             _currentHP = Mathf.Max(0, _currentHP - remaining);
         }
+
+        int actualDamage = hpBefore - _currentHP;
+        if (actualDamage > 0)
+            BattleStatistics.EnsureExists().RecordDamageTaken(actualDamage);
     }
 
     public int CurrentHP

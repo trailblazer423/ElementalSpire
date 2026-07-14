@@ -22,6 +22,13 @@
         public string rewardStage;
         public string[] keywords;
 
+        // 可选视觉资源。未配置时由动画系统使用元素默认特效。
+        public UnityEngine.Sprite cardImage;
+        public CardAnimationProfile animationProfile;
+        public UnityEngine.GameObject hoverVfxPrefab;
+        public UnityEngine.GameObject playVfxPrefab;
+        public UnityEngine.GameObject attackVfxPrefab;
+
         public bool HasCardType(CardType targetCardType)
         {
             return (cardType & targetCardType) == targetCardType;

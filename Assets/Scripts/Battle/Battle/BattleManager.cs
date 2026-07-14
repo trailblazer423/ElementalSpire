@@ -82,6 +82,9 @@ public class BattleManager : MonoBehaviour
 
     void Awake()
     {
+        if (GetComponent<BattleResultManager>() == null)
+            gameObject.AddComponent<BattleResultManager>();
+
         EnsureGameManager();
         _multiEnemyManager = GetComponent<MultiEnemyManager>();
         CacheComponents();
@@ -324,7 +327,12 @@ public class BattleManager : MonoBehaviour
                 int poisonDamage = enemy.state.TriggerPoisonTick();
                 if (poisonDamage <= 0) continue;
 
+                int hpBefore = enemy.hp != null ? enemy.hp.CurrentHP : 0;
                 enemy.DealDamage(poisonDamage);
+                int hpAfter = enemy.hp != null ? enemy.hp.CurrentHP : 0;
+                BattleStatistics.EnsureExists().RecordDamageDealt(hpBefore - hpAfter);
+                if (hpBefore > 0 && hpAfter <= 0)
+                    BattleStatistics.EnsureExists().RecordEnemyKilled(enemy.gameObject);
                 LogBattleEvent($"{enemy.DisplayName} 中毒结算：受到 {poisonDamage} 点伤害，剩余中毒 {enemy.state.PoisonStacks}。");
             }
 
@@ -336,7 +344,11 @@ public class BattleManager : MonoBehaviour
             int poisonDamage = _enemyState.TriggerPoisonTick();
             if (poisonDamage > 0)
             {
+                int hpBefore = _enemyHP.CurrentHP;
                 _enemyHP.TakeDamage(poisonDamage);
+                BattleStatistics.EnsureExists().RecordDamageDealt(hpBefore - _enemyHP.CurrentHP);
+                if (hpBefore > 0 && _enemyHP.CurrentHP <= 0)
+                    BattleStatistics.EnsureExists().RecordEnemyKilled(_enemyObject);
                 LogBattleEvent($"敌方中毒结算：造成 {poisonDamage} 点伤害，剩余中毒 {_enemyState.PoisonStacks}。");
                 if (_enemyHP.CurrentHP <= 0)
                     EndBattle("win");
@@ -360,6 +372,7 @@ public class BattleManager : MonoBehaviour
 
     private void OnEnemyTurnStart()
     {
+        BattleStatistics.Instance?.ResetCombo();
         LogBattleEvent("敌人行动开始。");
         StartCoroutine(EnemyAIAttack());
     }
@@ -434,7 +447,11 @@ public class BattleManager : MonoBehaviour
 
         if (_enemyHP == null || _isBattleOver) return;
 
+        int hpBefore = _enemyHP.CurrentHP;
         _enemyHP.TakeDamage(damage);
+        BattleStatistics.EnsureExists().RecordDamageDealt(hpBefore - _enemyHP.CurrentHP);
+        if (hpBefore > 0 && _enemyHP.CurrentHP <= 0)
+            BattleStatistics.EnsureExists().RecordEnemyKilled(_enemyObject);
         LogBattleEvent($"敌人受到 {damage} 点伤害，HP {_enemyHP.CurrentHP}/{_enemyHP.MaxHP}。");
 
         OnBattleInfoChanged?.Invoke();
@@ -452,10 +469,16 @@ public class BattleManager : MonoBehaviour
     {
         if (target == null || damage <= 0 || _isBattleOver) return;
 
+        int hpBefore = target.hp != null ? target.hp.CurrentHP : 0;
         if (_multiEnemyManager != null)
             _multiEnemyManager.DealDamageToTarget(target, damage);
         else
             target.DealDamage(damage);
+
+        int hpAfter = target.hp != null ? target.hp.CurrentHP : 0;
+        BattleStatistics.EnsureExists().RecordDamageDealt(hpBefore - hpAfter);
+        if (hpBefore > 0 && hpAfter <= 0)
+            BattleStatistics.EnsureExists().RecordEnemyKilled(target.gameObject);
 
         LogBattleEvent($"{target.DisplayName} 受到 {damage} 点伤害，HP {target.hp?.CurrentHP ?? 0}/{target.hp?.MaxHP ?? 0}。");
         OnBattleInfoChanged?.Invoke();
@@ -606,6 +629,13 @@ public class BattleManager : MonoBehaviour
                 RunFlowCoordinator.EndRunFromBattle(result == "win");
         }
 
+        // 结算页必须可靠执行，不能只依赖 MonoBehaviour 的 Awake/事件订阅顺序。
+        BattleResultManager resultManager = GetComponent<BattleResultManager>();
+        if (resultManager == null)
+            resultManager = gameObject.AddComponent<BattleResultManager>();
+        resultManager.HandleBattleResult(result);
+
+        // 保留原事件，供 BattleUI 和其他既有监听者刷新状态。
         OnBattleOver?.Invoke(result);
         LogBattleEvent(result == "win" ? "战斗胜利。" : "战斗失败。");
 

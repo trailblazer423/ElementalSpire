@@ -357,6 +357,10 @@ MonoBehaviour:
   _waterResonanceActive: 0
   _triCoreLimit: 0
   _triCoreUsed: 0
+  _poisonStacks: 0
+  _weakness: 0
+  _vulnerable: 0
+  _nextTurnEnergyPenalty: 0
 --- !u!1 &468120968
 GameObject:
   m_ObjectHideFlags: 0
@@ -446,6 +450,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   poisonStacks: 0
+  power: 0
+  weakness: 0
   elementAttachment: 0
   deepPoison: 0
 --- !u!114 &468120974
@@ -477,6 +483,7 @@ MonoBehaviour:
   enemyData: {fileID: 0}
   currentIntent: 5
   intentValue: 0
+  intentDescription: 
 --- !u!114 &468120977
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -816,7 +823,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &770960040
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1396,7 +1403,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 268d24b94ef8067419b0a5229064606b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  targetSceneName: A
 --- !u!114 &1107284469
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1939,7 +1945,10 @@ MonoBehaviour:
   - {fileID: 11400000, guid: ea3dce4fd74e2ab43ac8a61e99ef2de8, type: 2}
   - {fileID: 11400000, guid: 02d88b91cd9d6944580907a7ff80a441, type: 2}
   - {fileID: 11400000, guid: b53a635ae6c0d5d4fb6707e64674e21b, type: 2}
+  _eliteEnemyPool: []
+  _naiLongArmyMembers: []
   _bossEnemyData: {fileID: 11400000, guid: f75747f1b70a18f45b8458214934f25d, type: 2}
+  _enemyPrefab: {fileID: 0}
   _startingDeck: 1
   _useDemoMixedDeck: 1
   _returnToMapOnWin: 0
